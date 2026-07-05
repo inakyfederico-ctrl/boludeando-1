@@ -1,0 +1,348 @@
+import { useState, useEffect, useRef } from "react";
+import { DemonicEyes } from "@/app/components/DemonicEyes";
+import { Defects } from "@/app/components/Defects";
+import { DemonicAuras } from "@/app/components/DemonicAuras";
+import { CharacterCreation } from "@/app/components/CharacterCreation";
+import { CharacterSheet } from "@/app/components/CharacterSheet";
+import { RoomGate } from "@/app/components/RoomGate";
+import { crearPersonaje, actualizarPersonaje } from "@/app/lib/api";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
+import { Card } from "@/app/components/ui/card";
+import { Separator } from "@/app/components/ui/separator";
+import { Button } from "@/app/components/ui/button";
+import { ChevronRight, ChevronLeft } from "lucide-react";
+
+const INITIAL_EYE_POINTS = 4;
+
+// Datos de ejemplo para los defectos
+const DEFECTS = [
+  { id: "defect-1", pointsGained: 2, auraPoints: 2, affectsPrice: false },
+  { id: "defect-2", pointsGained: 0, auraPoints: 0, affectsPrice: false },
+  { id: "defect-3", pointsGained: 0, auraPoints: 0, affectsPrice: false },
+  { id: "defect-4", pointsGained: 4, auraPoints: 0, affectsPrice: false },
+  { id: "defect-5", pointsGained: 0, auraPoints: 0, affectsPrice: true },
+  { id: "defect-6", pointsGained: 0, auraPoints: 0, affectsPrice: false },
+  { id: "defect-7", pointsGained: 4, auraPoints: 2, affectsPrice: false },
+  { id: "defect-8", pointsGained: 6, auraPoints: 6, affectsPrice: false },
+  { id: "defect-9", pointsGained: 0, auraPoints: 0, affectsPrice: false },
+  { id: "defect-10", pointsGained: 0, auraPoints: 0, affectsPrice: false },
+  { id: "defect-11", pointsGained: 30, auraPoints: 0, affectsPrice: false },
+];
+
+type Step = "room" | "abilities" | "creation" | "sheet";
+
+export default function App() {
+  const [currentStep, setCurrentStep] = useState<Step>("room");
+  const [campaignCode, setCampaignCode] = useState<string | null>(null);
+  const [characterId, setCharacterId] = useState<string | null>(null);
+  const [selectedEyes, setSelectedEyes] = useState<string[]>([]);
+  const [selectedDefects, setSelectedDefects] = useState<string[]>([]);
+  const [selectedAuras, setSelectedAuras] = useState<string[]>([]);
+  const [freeEyeFromDoblePersonalidad, setFreeEyeFromDoblePersonalidad] = useState<string | null>(null);
+  
+  const [characterData, setCharacterData] = useState({
+    name: "",
+    age: "",
+    background: "",
+    appearance: "",
+  });
+
+  // Se activa recién después de que el personaje ya tiene un id
+  // (evita disparar un guardado antes de que exista el registro)
+  const skipFirstSave = useRef(true);
+
+  // Autoguardado: cada vez que cambia algo del personaje, lo manda al backend
+  // con un pequeño debounce para no spamear al servidor con cada tecla.
+  useEffect(() => {
+    if (!characterId) return;
+    if (skipFirstSave.current) {
+      skipFirstSave.current = false;
+      return;
+    }
+    const timeoutId = setTimeout(() => {
+      actualizarPersonaje(characterId, {
+        ...characterData,
+        selectedEyes,
+        selectedDefects,
+        selectedAuras,
+      }).catch((err) => console.error("Error al autoguardar:", err));
+    }, 800);
+    return () => clearTimeout(timeoutId);
+  }, [characterData, selectedEyes, selectedDefects, selectedAuras, characterId]);
+
+  // Cuando se une/crea una sala, se crea el registro del personaje en Mongo
+  const handleJoinRoom = async (code: string) => {
+    setCampaignCode(code);
+    try {
+      const character = await crearPersonaje(code, {
+        name: "",
+        age: "",
+        background: "",
+        appearance: "",
+        selectedEyes: [],
+        selectedDefects: [],
+        selectedAuras: [],
+      });
+      setCharacterId(character._id);
+    } catch (err) {
+      console.error("Error al crear el personaje:", err);
+    }
+    setCurrentStep("abilities");
+  };
+
+  // Verificar si tiene defectos especiales
+  const hasImpulsoDePecado = selectedDefects.includes("defect-5");
+  const hasDoblePersonalidad = selectedDefects.includes("defect-6");
+  const hasRemuneracion = selectedDefects.includes("defect-9");
+  const hasLimitadorDePoder = selectedDefects.includes("defect-4");
+  const hasSobreexigido = selectedDefects.includes("defect-8");
+
+  // Calcular puntos totales para ojos
+  const bonusPoints = DEFECTS.filter((defect) => selectedDefects.includes(defect.id)).reduce(
+    (sum, defect) => sum + defect.pointsGained,
+    0
+  );
+  const totalEyePoints = INITIAL_EYE_POINTS + bonusPoints;
+
+  // Calcular puntos totales para auras
+  const bonusAuraPoints = DEFECTS.filter((defect) => selectedDefects.includes(defect.id)).reduce(
+    (sum, defect) => sum + (defect.auraPoints || 0),
+    0
+  );
+
+  const handleEyeToggle = (eyeId: string) => {
+    setSelectedEyes((prev) =>
+      prev.includes(eyeId) ? prev.filter((id) => id !== eyeId) : [...prev, eyeId]
+    );
+  };
+
+  const handleSelectFreeEye = (eyeId: string) => {
+    setFreeEyeFromDoblePersonalidad(eyeId);
+    setSelectedEyes((prev) => {
+      if (prev.includes(eyeId)) return prev;
+      return [...prev, eyeId];
+    });
+  };
+
+  const handleDefectToggle = (defectId: string) => {
+    setSelectedDefects((prev) => {
+      const newDefects = prev.includes(defectId) 
+        ? prev.filter((id) => id !== defectId) 
+        : [...prev, defectId];
+      
+      // Si se deselecciona Doble Personalidad, limpiar el ojo gratis
+      if (defectId === "defect-6" && !newDefects.includes("defect-6")) {
+        if (freeEyeFromDoblePersonalidad) {
+          setSelectedEyes((eyes) => eyes.filter((id) => id !== freeEyeFromDoblePersonalidad));
+          setFreeEyeFromDoblePersonalidad(null);
+        }
+      }
+      
+      return newDefects;
+    });
+  };
+
+  const handleAuraToggle = (auraId: string) => {
+    setSelectedAuras((prev) =>
+      prev.includes(auraId) ? prev.filter((id) => id !== auraId) : [...prev, auraId]
+    );
+  };
+
+  const renderStep = () => {
+    switch (currentStep) {
+      case "room":
+        return null; // se maneja aparte, ver el return principal más abajo
+
+      case "abilities":
+        return (
+          <>
+            {/* Resumen de puntos */}
+            <Card className="p-6 mb-8 bg-black/40 border-gray-800">
+              <h2 className="text-xl font-bold mb-4 text-gray-300">Resumen del Personaje</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="text-center p-4 bg-red-900/20 border border-red-800 rounded-lg">
+                  <p className="text-sm text-gray-400 mb-1">Puntos de Ojos</p>
+                  <p className="text-3xl font-bold text-red-400">{totalEyePoints}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    ({INITIAL_EYE_POINTS} base + {bonusPoints} defectos)
+                  </p>
+                </div>
+                <div className="text-center p-4 bg-purple-900/20 border border-purple-800 rounded-lg">
+                  <p className="text-sm text-gray-400 mb-1">Defectos Seleccionados</p>
+                  <p className="text-3xl font-bold text-purple-400">{selectedDefects.length}</p>
+                  <p className="text-xs text-gray-500 mt-1">(Máximo 4)</p>
+                </div>
+                <div className="text-center p-4 bg-amber-900/20 border border-amber-800 rounded-lg">
+                  <p className="text-sm text-gray-400 mb-1">Auras Activas</p>
+                  <p className="text-3xl font-bold text-amber-400">{selectedAuras.length}</p>
+                  <p className="text-xs text-gray-500 mt-1">(Máximo 3 puntos)</p>
+                </div>
+              </div>
+            </Card>
+
+            <Separator className="mb-8 bg-gray-800" />
+
+            {/* Tabs para los apartados */}
+            <Tabs defaultValue="eyes" className="w-full">
+              <TabsList className="grid w-full grid-cols-3 bg-black/40 border border-gray-800 mb-8">
+                <TabsTrigger value="eyes" className="data-[state=active]:bg-red-900/50 data-[state=active]:text-red-400">
+                  Ojos Demoniacos
+                </TabsTrigger>
+                <TabsTrigger value="defects" className="data-[state=active]:bg-purple-900/50 data-[state=active]:text-purple-400">
+                  Defectos
+                </TabsTrigger>
+                <TabsTrigger value="auras" className="data-[state=active]:bg-amber-900/50 data-[state=active]:text-amber-400">
+                  Auras Demoniacas
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="eyes" className="mt-0">
+                <Card className="p-6 bg-black/40 border-gray-800">
+                  <DemonicEyes
+                    availablePoints={totalEyePoints}
+                    selectedEyes={selectedEyes}
+                    onEyeToggle={handleEyeToggle}
+                    hasImpulsoDePecado={hasImpulsoDePecado}
+                    hasDoblePersonalidad={hasDoblePersonalidad}
+                    hasRemuneracion={hasRemuneracion}
+                    freeEyeFromDoblePersonalidad={freeEyeFromDoblePersonalidad}
+                    onSelectFreeEye={handleSelectFreeEye}
+                    hasLimitadorDePoder={hasLimitadorDePoder}
+                    hasSobreexigido={hasSobreexigido}
+                  />
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="defects" className="mt-0">
+                <Card className="p-6 bg-black/40 border-gray-800">
+                  <Defects selectedDefects={selectedDefects} onDefectToggle={handleDefectToggle} />
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="auras" className="mt-0">
+                <Card className="p-6 bg-black/40 border-gray-800">
+                  <DemonicAuras 
+                    selectedAuras={selectedAuras} 
+                    onAuraToggle={handleAuraToggle} 
+                    bonusAuraPoints={bonusAuraPoints} 
+                    selectedEyes={selectedEyes}
+                  />
+                </Card>
+              </TabsContent>
+            </Tabs>
+
+            <div className="flex justify-end mt-8">
+              <Button
+                onClick={() => setCurrentStep("creation")}
+                className="bg-cyan-700 hover:bg-cyan-600 text-white"
+                size="lg"
+              >
+                Continuar a Creación de Personaje
+                <ChevronRight className="ml-2 w-5 h-5" />
+              </Button>
+            </div>
+          </>
+        );
+
+      case "creation":
+        return (
+          <>
+            <CharacterCreation
+              characterData={characterData}
+              onDataChange={setCharacterData}
+            />
+
+            <div className="flex justify-between mt-8">
+              <Button
+                onClick={() => setCurrentStep("abilities")}
+                variant="outline"
+                size="lg"
+                className="border-gray-700 text-gray-300 hover:bg-gray-800"
+              >
+                <ChevronLeft className="mr-2 w-5 h-5" />
+                Volver a Habilidades
+              </Button>
+              <Button
+                onClick={() => setCurrentStep("sheet")}
+                className="bg-green-700 hover:bg-green-600 text-white"
+                size="lg"
+              >
+                Ver Hoja de Personaje
+                <ChevronRight className="ml-2 w-5 h-5" />
+              </Button>
+            </div>
+          </>
+        );
+
+      case "sheet":
+        return (
+          <>
+            <CharacterSheet
+              characterData={characterData}
+              selectedEyes={selectedEyes}
+              selectedDefects={selectedDefects}
+              selectedAuras={selectedAuras}
+            />
+
+            <div className="flex justify-between mt-8">
+              <Button
+                onClick={() => setCurrentStep("creation")}
+                variant="outline"
+                size="lg"
+                className="border-gray-700 text-gray-300 hover:bg-gray-800"
+              >
+                <ChevronLeft className="mr-2 w-5 h-5" />
+                Volver a Creación
+              </Button>
+              <Button
+                onClick={() => window.print()}
+                className="bg-blue-700 hover:bg-blue-600 text-white"
+                size="lg"
+              >
+                Imprimir Hoja de Personaje
+              </Button>
+            </div>
+          </>
+        );
+    }
+  };
+
+  if (currentStep === "room") {
+    return <RoomGate onJoin={handleJoinRoom} />;
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-red-950 to-gray-900 text-gray-100">
+      {/* Header */}
+      <div className="bg-black/50 border-b border-red-900/50 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <h1 className="text-4xl font-bold text-center bg-gradient-to-r from-red-500 via-purple-500 to-amber-500 bg-clip-text text-transparent">
+            Creación de Personaje: Ángeles y Demonios
+          </h1>
+          {campaignCode && (
+            <p className="text-center text-xs text-gray-500 mt-1">
+              Sala: <span className="font-mono text-gray-300">{campaignCode}</span>
+            </p>
+          )}
+          <p className="text-center text-gray-400 mt-2">
+            {currentStep === "abilities" && "Selecciona tus habilidades demoniacas y defectos"}
+            {currentStep === "creation" && "Define la identidad y historia de tu personaje"}
+            {currentStep === "sheet" && "Hoja de personaje completa"}
+          </p>
+          
+          {/* Progress indicator */}
+          <div className="flex justify-center gap-2 mt-4">
+            <div className={`h-2 w-24 rounded-full ${currentStep === "abilities" ? "bg-red-500" : "bg-gray-700"}`} />
+            <div className={`h-2 w-24 rounded-full ${currentStep === "creation" ? "bg-cyan-500" : "bg-gray-700"}`} />
+            <div className={`h-2 w-24 rounded-full ${currentStep === "sheet" ? "bg-green-500" : "bg-gray-700"}`} />
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {renderStep()}
+      </div>
+    </div>
+  );
+}
