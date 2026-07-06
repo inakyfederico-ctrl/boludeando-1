@@ -1,0 +1,252 @@
+import { Card } from "@/app/components/ui/card";
+import { Button } from "@/app/components/ui/button";
+import { Plus, Trash2 } from "lucide-react";
+import {
+  ABILITY_KEYS,
+  ABILITY_NAMES,
+  AbilityKey,
+  AbilityScores,
+  SKILLS,
+  SkillProficiency,
+  abilityModifier,
+  formatModifier,
+  skillBonus,
+  saveBonus,
+  PROFICIENCY_BONUS,
+} from "@/app/lib/dnd";
+
+export type Attack = { id: string; name: string; bonus: string; damage: string };
+
+interface StatBlockProps {
+  clase: string;
+  raza: string;
+  abilityScores: AbilityScores;
+  skillProficiencies: Record<string, SkillProficiency>;
+  saveProficiencies: Record<AbilityKey, boolean>;
+  hp: number;
+  ac: number;
+  speed: number;
+  attacks: Attack[];
+  onChangeSkillProficiency: (skillId: string, value: SkillProficiency) => void;
+  onChangeSaveProficiency: (ability: AbilityKey, value: boolean) => void;
+  onChangeHp: (value: number) => void;
+  onChangeAc: (value: number) => void;
+  onChangeSpeed: (value: number) => void;
+  onChangeAttacks: (attacks: Attack[]) => void;
+}
+
+function nextProficiency(current: SkillProficiency): SkillProficiency {
+  if (current === "none") return "proficient";
+  if (current === "proficient") return "expertise";
+  return "none";
+}
+
+function ProficiencyDot({
+  value,
+  onClick,
+}: {
+  value: SkillProficiency;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title="Click para cambiar: sin competencia → competencia → experticia (x2)"
+      className={`w-4 h-4 rounded-full border shrink-0 ${
+        value === "expertise"
+          ? "bg-cyan-400 border-cyan-300"
+          : value === "proficient"
+          ? "bg-gray-200 border-gray-300"
+          : "bg-transparent border-gray-600"
+      }`}
+    />
+  );
+}
+
+export function StatBlock({
+  clase,
+  raza,
+  abilityScores,
+  skillProficiencies,
+  saveProficiencies,
+  hp,
+  ac,
+  speed,
+  attacks,
+  onChangeSkillProficiency,
+  onChangeSaveProficiency,
+  onChangeHp,
+  onChangeAc,
+  onChangeSpeed,
+  onChangeAttacks,
+}: StatBlockProps) {
+  const dexMod = abilityModifier(abilityScores.des);
+
+  const addAttack = () => {
+    onChangeAttacks([
+      ...attacks,
+      { id: `attack-${Date.now()}`, name: "", bonus: "", damage: "" },
+    ]);
+  };
+
+  const updateAttack = (id: string, field: keyof Attack, value: string) => {
+    onChangeAttacks(attacks.map((a) => (a.id === id ? { ...a, [field]: value } : a)));
+  };
+
+  const removeAttack = (id: string) => {
+    onChangeAttacks(attacks.filter((a) => a.id !== id));
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Columna izquierda: características + salvaciones + ataques */}
+      <div className="space-y-6">
+        <Card className="p-6 bg-black/40 border-gray-800">
+          <h3 className="text-lg font-semibold text-gray-300 mb-1">Características</h3>
+          <p className="text-xs text-gray-500 mb-4">
+            Clase: <span className="text-cyan-400">{clase}</span> · Raza:{" "}
+            <span className="text-cyan-400">{raza}</span>
+          </p>
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-4">
+            {ABILITY_KEYS.map((key) => {
+              const score = abilityScores[key];
+              return (
+                <div
+                  key={key}
+                  className="p-2 bg-gray-900/60 border border-gray-700 rounded-md text-center"
+                >
+                  <p className="text-xs text-gray-500 uppercase">{key}</p>
+                  <p className="text-xl font-bold text-gray-100">
+                    {formatModifier(abilityModifier(score))}
+                  </p>
+                  <p className="text-xs text-gray-500">{score}</p>
+                </div>
+              );
+            })}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+            <div className="p-2 bg-gray-900/60 border border-gray-700 rounded-md">
+              <p className="text-xs text-gray-500">Puntos de golpe</p>
+              <input
+                type="number"
+                value={hp}
+                onChange={(e) => onChangeHp(Number(e.target.value))}
+                className="w-full bg-transparent text-center text-xl font-bold text-gray-100 outline-none"
+              />
+            </div>
+            <div className="p-2 bg-gray-900/60 border border-gray-700 rounded-md">
+              <p className="text-xs text-gray-500">Iniciativa</p>
+              <p className="text-xl font-bold text-gray-100">{formatModifier(dexMod)}</p>
+            </div>
+            <div className="p-2 bg-gray-900/60 border border-gray-700 rounded-md">
+              <p className="text-xs text-gray-500">Velocidad (m)</p>
+              <input
+                type="number"
+                value={speed}
+                onChange={(e) => onChangeSpeed(Number(e.target.value))}
+                className="w-full bg-transparent text-center text-xl font-bold text-gray-100 outline-none"
+              />
+            </div>
+            <div className="p-2 bg-gray-900/60 border border-gray-700 rounded-md">
+              <p className="text-xs text-gray-500">Clase de armadura</p>
+              <input
+                type="number"
+                value={ac}
+                onChange={(e) => onChangeAc(Number(e.target.value))}
+                className="w-full bg-transparent text-center text-xl font-bold text-gray-100 outline-none"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-3">
+            Bonif. de competencia: {formatModifier(PROFICIENCY_BONUS)} (nivel 1)
+          </p>
+        </Card>
+
+        <Card className="p-6 bg-black/40 border-gray-800">
+          <h3 className="text-lg font-semibold text-gray-300 mb-3">Tiradas de Salvación</h3>
+          <div className="space-y-2">
+            {ABILITY_KEYS.map((key) => {
+              const proficient = saveProficiencies[key];
+              return (
+                <div key={key} className="flex items-center gap-3">
+                  <ProficiencyDot
+                    value={proficient ? "proficient" : "none"}
+                    onClick={() => onChangeSaveProficiency(key, !proficient)}
+                  />
+                  <span className="text-gray-300 flex-1">{ABILITY_NAMES[key]}</span>
+                  <span className="text-gray-100 font-semibold">
+                    {formatModifier(saveBonus(abilityScores[key], proficient))}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+
+        <Card className="p-6 bg-black/40 border-gray-800">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold text-gray-300">Ataques</h3>
+            <Button size="sm" variant="outline" className="border-gray-700" onClick={addAttack}>
+              <Plus className="w-4 h-4 mr-1" /> Agregar
+            </Button>
+          </div>
+          {attacks.length === 0 && (
+            <p className="text-sm text-gray-500">Todavía no agregaste ningún ataque.</p>
+          )}
+          <div className="space-y-2">
+            {attacks.map((attack) => (
+              <div key={attack.id} className="grid grid-cols-[1fr_70px_1fr_auto] gap-2 items-center">
+                <input
+                  placeholder="Nombre"
+                  value={attack.name}
+                  onChange={(e) => updateAttack(attack.id, "name", e.target.value)}
+                  className="px-2 py-1 bg-gray-900/60 border border-gray-700 rounded text-gray-100 text-sm"
+                />
+                <input
+                  placeholder="Bonif"
+                  value={attack.bonus}
+                  onChange={(e) => updateAttack(attack.id, "bonus", e.target.value)}
+                  className="px-2 py-1 bg-gray-900/60 border border-gray-700 rounded text-gray-100 text-sm"
+                />
+                <input
+                  placeholder="Daño"
+                  value={attack.damage}
+                  onChange={(e) => updateAttack(attack.id, "damage", e.target.value)}
+                  className="px-2 py-1 bg-gray-900/60 border border-gray-700 rounded text-gray-100 text-sm"
+                />
+                <button onClick={() => removeAttack(attack.id)} className="text-gray-500 hover:text-red-400">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      {/* Columna derecha: habilidades */}
+      <Card className="p-6 bg-black/40 border-gray-800">
+        <h3 className="text-lg font-semibold text-gray-300 mb-3">Habilidades</h3>
+        <div className="space-y-1">
+          {SKILLS.map((skill) => {
+            const prof = skillProficiencies[skill.id] ?? "none";
+            return (
+              <div key={skill.id} className="flex items-center gap-3 py-1">
+                <ProficiencyDot
+                  value={prof}
+                  onClick={() => onChangeSkillProficiency(skill.id, nextProficiency(prof))}
+                />
+                <span className="text-gray-300 flex-1 text-sm">
+                  {prof === "expertise" && <span className="text-cyan-400 mr-1">x2</span>}
+                  {skill.name} <span className="text-gray-500">({ABILITY_NAMES[skill.ability].slice(0, 3)})</span>
+                </span>
+                <span className="text-gray-100 font-semibold text-sm">
+                  {formatModifier(skillBonus(abilityScores[skill.ability], prof))}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+    </div>
+  );
+}
