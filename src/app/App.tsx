@@ -9,7 +9,14 @@ import { DemonCompanionStep } from "@/app/components/DemonCompanionStep";
 import { Attack } from "@/app/components/StatBlock";
 import { RoomGate } from "@/app/components/RoomGate";
 import { CharacterList } from "@/app/components/CharacterList";
-import { crearPersonaje, actualizarPersonaje, Character } from "@/app/lib/api";
+import {
+  crearPersonaje,
+  actualizarPersonaje,
+  borrarPersonaje,
+  Character,
+  CharacterPayload,
+  Credentials,
+} from "@/app/lib/api";
 import {
   AbilityKey,
   AbilityScores,
@@ -74,33 +81,54 @@ export default function App() {
   const [speed, setSpeed] = useState(9);
   const [attacks, setAttacks] = useState<Attack[]>([]);
 
+  // --- Sistema de código secreto ---
+  // secretCode: el código que "desbloquea" edición/borrado del personaje actual.
+  // Null significa: o todavía no se guardó en Mongo, o está bloqueado (viendo
+  // el personaje de otra persona sin haber puesto el código).
+  const [secretCode, setSecretCode] = useState<string | null>(null);
+  const [justCreatedSecret, setJustCreatedSecret] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [unlockInput, setUnlockInput] = useState("");
+  const [unlockError, setUnlockError] = useState("");
+  const [unlocking, setUnlocking] = useState(false);
+
   // Se activa recién después de que el personaje ya tiene un id
   // (evita disparar un guardado antes de que exista el registro)
   const skipFirstSave = useRef(true);
 
-  // Autoguardado: cada vez que cambia algo del personaje, lo manda al backend
-  // con un pequeño debounce para no spamear al servidor con cada tecla.
+  // Función que arma el objeto completo a mandar al backend
+  const buildPayload = (): Partial<CharacterPayload> => ({
+    ...characterData,
+    selectedEyes,
+    selectedDefects,
+    selectedAuras,
+    selectedCompanion,
+    abilityScores,
+    skillProficiencies,
+    saveProficiencies,
+    hp,
+    ac,
+    speed,
+    attacks,
+  });
+
+  // Autoguardado: solo corre si el personaje YA se guardó al menos una vez
+  // (tiene characterId) Y tenemos su código secreto para poder editarlo.
+  // Mientras se está creando (antes del primer "Guardar"), no toca la red.
   useEffect(() => {
-    if (!characterId) return;
+    if (!characterId || !secretCode) return;
     if (skipFirstSave.current) {
       skipFirstSave.current = false;
       return;
     }
+    setSaveStatus("saving");
     const timeoutId = setTimeout(() => {
-      actualizarPersonaje(characterId, {
-        ...characterData,
-        selectedEyes,
-        selectedDefects,
-        selectedAuras,
-        selectedCompanion,
-        abilityScores,
-        skillProficiencies,
-        saveProficiencies,
-        hp,
-        ac,
-        speed,
-        attacks,
-      }).catch((err) => console.error("Error al autoguardar:", err));
+      actualizarPersonaje(characterId, buildPayload(), { secretCode })
+        .then(() => setSaveStatus("saved"))
+        .catch((err) => {
+          console.error("Error al autoguardar:", err);
+          setSaveStatus("error");
+        });
     }, 800);
     return () => clearTimeout(timeoutId);
   }, [
@@ -117,6 +145,7 @@ export default function App() {
     speed,
     attacks,
     characterId,
+    secretCode,
   ]);
 
   // Al unirse/crear una sala, primero se muestra la lista de personajes existentes
@@ -125,52 +154,116 @@ export default function App() {
     setCurrentStep("list");
   };
 
-  // Crea un personaje vacío nuevo en Mongo y arranca el flujo de creación
-  const handleCreateNewCharacter = async () => {
-    if (!campaignCode) return;
-    try {
-      const character = await crearPersonaje(campaignCode, {
-        name: "",
-        age: "",
-        background: "",
-        appearance: "",
-        selectedEyes: [],
-        selectedDefects: [],
-        selectedAuras: [],
-        selectedCompanion: null,
-        abilityScores: DEFAULT_ABILITY_SCORES,
-        skillProficiencies: {},
-        saveProficiencies: { fue: false, des: false, con: false, int: false, sab: false, car: false },
-        hp: 10,
-        ac: 10,
-        speed: 9,
-        attacks: [],
-      });
-      // Reiniciar todo el estado local antes de arrancar un personaje nuevo
-      skipFirstSave.current = true;
-      setCharacterId(character._id);
-      setSelectedEyes([]);
-      setSelectedDefects([]);
-      setSelectedAuras([]);
-      setSelectedCompanion(null);
-      setCharacterData({ name: "", age: "", background: "", appearance: "" });
-      setAbilityScores(DEFAULT_ABILITY_SCORES);
-      setSkillProficiencies({});
-      setSaveProficiencies({ fue: false, des: false, con: false, int: false, sab: false, car: false });
-      setHp(10);
-      setAc(10);
-      setSpeed(9);
-      setAttacks([]);
-    } catch (err) {
-      console.error("Error al crear el personaje:", err);
-    }
+  // Reinicia todo el estado local para arrancar un personaje nuevo.
+  // Ya NO se crea nada en Mongo acá: eso pasa recién al tocar "Guardar
+  // personaje" en la ficha final.
+  const handleCreateNewCharacter = () => {
+    skipFirstSave.current = true;
+    setCharacterId(null);
+    setSecretCode(null);
+    setSelectedEyes([]);
+    setSelectedDefects([]);
+    setSelectedAuras([]);
+    setSelectedCompanion(null);
+    setCharacterData({ name: "", age: "", background: "", appearance: "" });
+    setAbilityScores(DEFAULT_ABILITY_SCORES);
+    setSkillProficiencies({});
+    setSaveProficiencies({ fue: false, des: false, con: false, int: false, sab: false, car: false });
+    setHp(10);
+    setAc(10);
+    setSpeed(9);
+    setAttacks([]);
+    setSaveStatus("idle");
     setCurrentStep("abilities");
   };
 
-  // Carga un personaje ya existente al estado local y va directo a la ficha
+  // Guarda el personaje en Mongo por primera vez, o guarda cambios si ya
+  // estaba guardado y tenemos el código secreto para autorizarlo.
+  const handleSaveCharacter = async () => {
+    if (!campaignCode) return;
+    setSaveStatus("saving");
+    try {
+      if (!characterId) {
+        // Primera vez: se crea y se genera el código secreto
+        const character = await crearPersonaje(campaignCode, buildPayload());
+        setCharacterId(character._id);
+        setSecretCode(character.secretCode);
+        setJustCreatedSecret(character.secretCode);
+        localStorage.setItem(`personaje_secreto_${character._id}`, character.secretCode);
+        skipFirstSave.current = true; // evita que el useEffect dispare un guardado duplicado
+      } else if (secretCode) {
+        await actualizarPersonaje(characterId, buildPayload(), { secretCode });
+      }
+      setSaveStatus("saved");
+    } catch (err) {
+      console.error("Error al guardar el personaje:", err);
+      setSaveStatus("error");
+    }
+  };
+
+  // Intenta desbloquear la edición probando el valor como código secreto
+  // propio del personaje, y si falla, como contraseña de administrador.
+  const handleUnlock = async () => {
+    if (!characterId || !unlockInput.trim()) return;
+    setUnlocking(true);
+    setUnlockError("");
+    const intentar = async (credentials: Credentials) =>
+      actualizarPersonaje(characterId, {}, credentials);
+    try {
+      await intentar({ secretCode: unlockInput.trim() });
+      setSecretCode(unlockInput.trim());
+      localStorage.setItem(`personaje_secreto_${characterId}`, unlockInput.trim());
+      setUnlockInput("");
+    } catch {
+      try {
+        await intentar({ adminPassword: unlockInput.trim() });
+        setSecretCode(unlockInput.trim()); // guarda la admin password como "código" de esta sesión
+        setUnlockInput("");
+      } catch {
+        setUnlockError("Código incorrecto.");
+      }
+    } finally {
+      setUnlocking(false);
+    }
+  };
+
+  // Borra el personaje actual. Pide el código secreto o la contraseña de
+  // administrador con un prompt simple.
+  const handleDeleteCharacter = async () => {
+    if (!characterId) return;
+    const confirmado = window.confirm("¿Seguro que querés borrar este personaje? No se puede deshacer.");
+    if (!confirmado) return;
+
+    let code = secretCode;
+    if (!code) {
+      code = window.prompt("Ingresá el código secreto del personaje o la contraseña de administrador:");
+      if (!code) return;
+    }
+    try {
+      await borrarPersonaje(characterId, { secretCode: code });
+    } catch {
+      try {
+        await borrarPersonaje(characterId, { adminPassword: code });
+      } catch (err) {
+        window.alert("Código incorrecto. No se pudo borrar el personaje.");
+        return;
+      }
+    }
+    localStorage.removeItem(`personaje_secreto_${characterId}`);
+    setCurrentStep("list");
+  };
+
+  // Carga un personaje ya existente al estado local y va directo a la ficha.
+  // Si este navegador ya tiene guardado su código secreto (porque lo creó acá
+  // mismo antes), se desbloquea automáticamente.
   const handleViewCharacter = (character: Character) => {
     skipFirstSave.current = true;
     setCharacterId(character._id);
+    setUnlockInput("");
+    setUnlockError("");
+    const codigoGuardado = localStorage.getItem(`personaje_secreto_${character._id}`);
+    setSecretCode(codigoGuardado);
+    setSaveStatus("idle");
     setSelectedEyes(character.selectedEyes || []);
     setSelectedDefects(character.selectedDefects || []);
     setSelectedAuras(character.selectedAuras || []);
@@ -415,6 +508,61 @@ export default function App() {
       case "sheet":
         return (
           <>
+            {/* Barra de desbloqueo: aparece si estamos viendo un personaje ya
+                guardado en Mongo pero este navegador no tiene su código guardado */}
+            {characterId && !secretCode && (
+              <Card className="p-4 mb-6 bg-amber-950/30 border-amber-800 flex flex-col sm:flex-row items-center gap-3">
+                <p className="text-sm text-amber-300 flex-1">
+                  Este personaje está bloqueado para edición. Ingresá su código secreto
+                  (o la contraseña de administrador) para poder modificarlo o borrarlo.
+                </p>
+                <input
+                  type="text"
+                  value={unlockInput}
+                  onChange={(e) => setUnlockInput(e.target.value)}
+                  placeholder="Código"
+                  className="px-3 py-2 rounded-md bg-black/40 border border-gray-700 text-gray-100 text-sm"
+                />
+                <Button
+                  onClick={handleUnlock}
+                  disabled={unlocking || !unlockInput.trim()}
+                  size="sm"
+                  className="bg-amber-700 hover:bg-amber-600 text-white"
+                >
+                  Desbloquear
+                </Button>
+                {unlockError && <p className="text-xs text-red-400">{unlockError}</p>}
+              </Card>
+            )}
+
+            {/* Modal simple mostrando el código secreto recién generado */}
+            {justCreatedSecret && (
+              <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 px-4">
+                <Card className="p-6 bg-gray-900 border-purple-700 max-w-md w-full">
+                  <h3 className="text-xl font-bold text-purple-400 mb-3">
+                    ¡Personaje guardado!
+                  </h3>
+                  <p className="text-sm text-gray-300 mb-3">
+                    Guardá este código: es la única forma de volver a editar o borrar
+                    este personaje más adelante (por ejemplo, desde otro dispositivo).
+                  </p>
+                  <p className="font-mono text-lg text-center bg-black/40 border border-gray-700 rounded-md py-3 mb-4 text-amber-400 tracking-widest">
+                    {justCreatedSecret}
+                  </p>
+                  <p className="text-xs text-gray-500 mb-4">
+                    En este navegador ya quedó guardado automáticamente, así que podés
+                    seguir editando sin volver a escribirlo.
+                  </p>
+                  <Button
+                    onClick={() => setJustCreatedSecret(null)}
+                    className="w-full bg-purple-700 hover:bg-purple-600 text-white"
+                  >
+                    Entendido
+                  </Button>
+                </Card>
+              </div>
+            )}
+
             <CharacterSheet
               characterData={characterData}
               selectedEyes={selectedEyes}
@@ -428,6 +576,7 @@ export default function App() {
               ac={ac}
               speed={speed}
               attacks={attacks}
+              readOnly={!!characterId && !secretCode}
               onChangeSkillProficiency={handleSkillProficiencyChange}
               onChangeSaveProficiency={handleSaveProficiencyChange}
               onChangeHp={setHp}
@@ -436,7 +585,7 @@ export default function App() {
               onChangeAttacks={setAttacks}
             />
 
-            <div className="flex justify-between mt-8">
+            <div className="flex flex-wrap justify-between gap-3 mt-8">
               <Button
                 onClick={() => setCurrentStep("companion")}
                 variant="outline"
@@ -446,13 +595,42 @@ export default function App() {
                 <ChevronLeft className="mr-2 w-5 h-5" />
                 Volver a Compañero Demonio
               </Button>
-              <Button
-                onClick={() => window.print()}
-                className="bg-blue-700 hover:bg-blue-600 text-white"
-                size="lg"
-              >
-                Imprimir Hoja de Personaje
-              </Button>
+
+              <div className="flex flex-wrap gap-3">
+                {characterId && secretCode && (
+                  <Button
+                    onClick={handleDeleteCharacter}
+                    variant="outline"
+                    size="lg"
+                    className="border-red-900 text-red-400 hover:bg-red-950"
+                  >
+                    Borrar personaje
+                  </Button>
+                )}
+                {(!characterId || secretCode) && (
+                  <Button
+                    onClick={handleSaveCharacter}
+                    disabled={saveStatus === "saving"}
+                    className="bg-green-700 hover:bg-green-600 text-white"
+                    size="lg"
+                  >
+                    {!characterId
+                      ? "Guardar personaje"
+                      : saveStatus === "saving"
+                      ? "Guardando..."
+                      : saveStatus === "saved"
+                      ? "Guardado ✓"
+                      : "Guardar cambios"}
+                  </Button>
+                )}
+                <Button
+                  onClick={() => window.print()}
+                  className="bg-blue-700 hover:bg-blue-600 text-white"
+                  size="lg"
+                >
+                  Imprimir Hoja de Personaje
+                </Button>
+              </div>
             </div>
           </>
         );

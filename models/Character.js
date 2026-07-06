@@ -31,6 +31,11 @@ const CharacterSchema = new mongoose.Schema({
   ac: { type: Number, default: 10 },
   speed: { type: Number, default: 9 },
   attacks: { type: Array, default: [] },
+
+  // Código secreto generado al crear el personaje. Sirve como "contraseña"
+  // para poder editarlo o borrarlo después. Nunca se devuelve en las
+  // respuestas de listar/obtener personajes, solo una vez al crearlo.
+  secretCode: { type: String, required: true },
 }, { timestamps: true });
 
 export default mongoose.model('Character', CharacterSchema);

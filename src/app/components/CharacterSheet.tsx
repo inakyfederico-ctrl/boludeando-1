@@ -32,6 +32,7 @@ interface CharacterSheetProps {
   ac: number;
   speed: number;
   attacks: Attack[];
+  readOnly?: boolean;
   onChangeSkillProficiency: (skillId: string, value: SkillProficiency) => void;
   onChangeSaveProficiency: (ability: AbilityKey, value: boolean) => void;
   onChangeHp: (value: number) => void;
@@ -53,6 +54,7 @@ export function CharacterSheet({
   ac,
   speed,
   attacks,
+  readOnly = false,
   onChangeSkillProficiency,
   onChangeSaveProficiency,
   onChangeHp,
@@ -91,6 +93,7 @@ export function CharacterSheet({
         ac={ac}
         speed={speed}
         attacks={attacks}
+        readOnly={readOnly}
         onChangeSkillProficiency={onChangeSkillProficiency}
         onChangeSaveProficiency={onChangeSaveProficiency}
         onChangeHp={onChangeHp}

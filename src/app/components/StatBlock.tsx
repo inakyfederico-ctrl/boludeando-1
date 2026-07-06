@@ -27,6 +27,7 @@ interface StatBlockProps {
   ac: number;
   speed: number;
   attacks: Attack[];
+  readOnly?: boolean;
   onChangeSkillProficiency: (skillId: string, value: SkillProficiency) => void;
   onChangeSaveProficiency: (ability: AbilityKey, value: boolean) => void;
   onChangeHp: (value: number) => void;
@@ -44,15 +45,18 @@ function nextProficiency(current: SkillProficiency): SkillProficiency {
 function ProficiencyDot({
   value,
   onClick,
+  disabled = false,
 }: {
   value: SkillProficiency;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
       title="Click para cambiar: sin competencia → competencia → experticia (x2)"
-      className={`w-4 h-4 rounded-full border shrink-0 ${
+      className={`w-4 h-4 rounded-full border shrink-0 disabled:opacity-60 disabled:cursor-not-allowed ${
         value === "expertise"
           ? "bg-cyan-400 border-cyan-300"
           : value === "proficient"
@@ -73,6 +77,7 @@ export function StatBlock({
   ac,
   speed,
   attacks,
+  readOnly = false,
   onChangeSkillProficiency,
   onChangeSaveProficiency,
   onChangeHp,
@@ -131,7 +136,8 @@ export function StatBlock({
                 type="number"
                 value={hp}
                 onChange={(e) => onChangeHp(Number(e.target.value))}
-                className="w-full bg-transparent text-center text-xl font-bold text-gray-100 outline-none"
+                disabled={readOnly}
+                className="w-full bg-transparent text-center text-xl font-bold text-gray-100 outline-none disabled:opacity-60"
               />
             </div>
             <div className="p-2 bg-gray-900/60 border border-gray-700 rounded-md">
@@ -144,7 +150,8 @@ export function StatBlock({
                 type="number"
                 value={speed}
                 onChange={(e) => onChangeSpeed(Number(e.target.value))}
-                className="w-full bg-transparent text-center text-xl font-bold text-gray-100 outline-none"
+                disabled={readOnly}
+                className="w-full bg-transparent text-center text-xl font-bold text-gray-100 outline-none disabled:opacity-60"
               />
             </div>
             <div className="p-2 bg-gray-900/60 border border-gray-700 rounded-md">
@@ -153,7 +160,8 @@ export function StatBlock({
                 type="number"
                 value={ac}
                 onChange={(e) => onChangeAc(Number(e.target.value))}
-                className="w-full bg-transparent text-center text-xl font-bold text-gray-100 outline-none"
+                disabled={readOnly}
+                className="w-full bg-transparent text-center text-xl font-bold text-gray-100 outline-none disabled:opacity-60"
               />
             </div>
           </div>
@@ -172,6 +180,7 @@ export function StatBlock({
                   <ProficiencyDot
                     value={proficient ? "proficient" : "none"}
                     onClick={() => onChangeSaveProficiency(key, !proficient)}
+                    disabled={readOnly}
                   />
                   <span className="text-gray-300 flex-1">{ABILITY_NAMES[key]}</span>
                   <span className="text-gray-100 font-semibold">
@@ -186,7 +195,7 @@ export function StatBlock({
         <Card className="p-6 bg-black/40 border-gray-800">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-lg font-semibold text-gray-300">Ataques</h3>
-            <Button size="sm" variant="outline" className="border-gray-700" onClick={addAttack}>
+            <Button size="sm" variant="outline" className="border-gray-700" onClick={addAttack} disabled={readOnly}>
               <Plus className="w-4 h-4 mr-1" /> Agregar
             </Button>
           </div>
@@ -200,21 +209,24 @@ export function StatBlock({
                   placeholder="Nombre"
                   value={attack.name}
                   onChange={(e) => updateAttack(attack.id, "name", e.target.value)}
-                  className="px-2 py-1 bg-gray-900/60 border border-gray-700 rounded text-gray-100 text-sm"
+                  disabled={readOnly}
+                  className="px-2 py-1 bg-gray-900/60 border border-gray-700 rounded text-gray-100 text-sm disabled:opacity-60"
                 />
                 <input
                   placeholder="Bonif"
                   value={attack.bonus}
                   onChange={(e) => updateAttack(attack.id, "bonus", e.target.value)}
-                  className="px-2 py-1 bg-gray-900/60 border border-gray-700 rounded text-gray-100 text-sm"
+                  disabled={readOnly}
+                  className="px-2 py-1 bg-gray-900/60 border border-gray-700 rounded text-gray-100 text-sm disabled:opacity-60"
                 />
                 <input
                   placeholder="Daño"
                   value={attack.damage}
                   onChange={(e) => updateAttack(attack.id, "damage", e.target.value)}
-                  className="px-2 py-1 bg-gray-900/60 border border-gray-700 rounded text-gray-100 text-sm"
+                  disabled={readOnly}
+                  className="px-2 py-1 bg-gray-900/60 border border-gray-700 rounded text-gray-100 text-sm disabled:opacity-60"
                 />
-                <button onClick={() => removeAttack(attack.id)} className="text-gray-500 hover:text-red-400">
+                <button onClick={() => removeAttack(attack.id)} disabled={readOnly} className="text-gray-500 hover:text-red-400 disabled:opacity-60 disabled:hover:text-gray-500">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
@@ -234,6 +246,7 @@ export function StatBlock({
                 <ProficiencyDot
                   value={prof}
                   onClick={() => onChangeSkillProficiency(skill.id, nextProficiency(prof))}
+                  disabled={readOnly}
                 />
                 <span className="text-gray-300 flex-1 text-sm">
                   {prof === "expertise" && <span className="text-cyan-400 mr-1">x2</span>}

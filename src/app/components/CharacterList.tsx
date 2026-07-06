@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/app/components/ui/card";
 import { Button } from "@/app/components/ui/button";
-import { Character, listarPersonajes } from "@/app/lib/api";
+import { Trash2 } from "lucide-react";
+import { Character, listarPersonajes, borrarPersonaje } from "@/app/lib/api";
 import { razaFromCompanion, claseFromAuras } from "@/app/lib/dnd";
 import { DEMONIC_AURAS } from "@/app/data/gameData";
 
@@ -16,22 +17,45 @@ export function CharacterList({ campaignCode, onCreateNew, onViewCharacter }: Ch
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    let cancelado = false;
+  const cargar = () => {
+    setLoading(true);
     listarPersonajes(campaignCode)
-      .then((data) => {
-        if (!cancelado) setCharacters(data);
-      })
-      .catch(() => {
-        if (!cancelado) setError("No se pudieron cargar los personajes de esta sala.");
-      })
-      .finally(() => {
-        if (!cancelado) setLoading(false);
-      });
-    return () => {
-      cancelado = true;
-    };
+      .then((data) => setCharacters(data))
+      .catch(() => setError("No se pudieron cargar los personajes de esta sala."))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    cargar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campaignCode]);
+
+  const handleDelete = async (e: React.MouseEvent, character: Character) => {
+    e.stopPropagation(); // que no dispare onViewCharacter de la tarjeta
+    const confirmado = window.confirm(
+      `¿Borrar a "${character.name || "este personaje"}"? No se puede deshacer.`
+    );
+    if (!confirmado) return;
+
+    const codigoGuardado = localStorage.getItem(`personaje_secreto_${character._id}`);
+    const codigo =
+      codigoGuardado ||
+      window.prompt("Ingresá el código secreto del personaje o la contraseña de administrador:");
+    if (!codigo) return;
+
+    try {
+      await borrarPersonaje(character._id, { secretCode: codigo });
+    } catch {
+      try {
+        await borrarPersonaje(character._id, { adminPassword: codigo });
+      } catch {
+        window.alert("Código incorrecto. No se pudo borrar el personaje.");
+        return;
+      }
+    }
+    localStorage.removeItem(`personaje_secreto_${character._id}`);
+    cargar();
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-red-950 to-gray-900 text-gray-100 px-4 py-10">
@@ -74,7 +98,16 @@ export function CharacterList({ campaignCode, onCreateNew, onViewCharacter }: Ch
                     {raza} · {clase}
                   </p>
                 </div>
-                <span className="text-gray-500 text-sm">Ver →</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-gray-500 text-sm">Ver →</span>
+                  <button
+                    onClick={(e) => handleDelete(e, character)}
+                    title="Borrar personaje"
+                    className="text-gray-600 hover:text-red-400"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </Card>
             );
           })}

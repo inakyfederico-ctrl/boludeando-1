@@ -27,6 +27,16 @@ export type Character = CharacterPayload & {
   updatedAt: string;
 };
 
+// Solo la respuesta de "crear personaje" trae el secretCode (una única vez)
+export type CharacterWithSecret = Character & { secretCode: string };
+
+// Credenciales que se mandan para poder editar o borrar un personaje:
+// o el código secreto propio del personaje, o la contraseña de administrador.
+export type Credentials = {
+  secretCode?: string;
+  adminPassword?: string;
+};
+
 export type Campaign = {
   _id: string;
   code: string;
@@ -74,28 +84,33 @@ export async function obtenerPersonaje(id: string): Promise<Character> {
 export async function crearPersonaje(
   campaignCode: string,
   data: Partial<CharacterPayload>
-): Promise<Character> {
+): Promise<CharacterWithSecret> {
   const res = await fetch(`/api/campaigns/${campaignCode}/characters`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  return handleResponse<Character>(res);
+  return handleResponse<CharacterWithSecret>(res);
 }
 
 export async function actualizarPersonaje(
   id: string,
-  data: Partial<CharacterPayload>
+  data: Partial<CharacterPayload>,
+  credentials: Credentials
 ): Promise<Character> {
   const res = await fetch(`/api/characters/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify({ ...data, ...credentials }),
   });
   return handleResponse<Character>(res);
 }
 
-export async function borrarPersonaje(id: string): Promise<void> {
-  const res = await fetch(`/api/characters/${id}`, { method: 'DELETE' });
+export async function borrarPersonaje(id: string, credentials: Credentials): Promise<void> {
+  const res = await fetch(`/api/characters/${id}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(credentials),
+  });
   return handleResponse<void>(res);
 }
