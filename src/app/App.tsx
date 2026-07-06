@@ -8,7 +8,8 @@ import { AbilityScoreStep } from "@/app/components/AbilityScoreStep";
 import { DemonCompanionStep } from "@/app/components/DemonCompanionStep";
 import { Attack } from "@/app/components/StatBlock";
 import { RoomGate } from "@/app/components/RoomGate";
-import { crearPersonaje, actualizarPersonaje } from "@/app/lib/api";
+import { CharacterList } from "@/app/components/CharacterList";
+import { crearPersonaje, actualizarPersonaje, Character } from "@/app/lib/api";
 import {
   AbilityKey,
   AbilityScores,
@@ -38,7 +39,7 @@ const DEFECTS = [
   { id: "defect-11", pointsGained: 30, auraPoints: 0, affectsPrice: false },
 ];
 
-type Step = "room" | "abilities" | "creation" | "stats" | "companion" | "sheet";
+type Step = "room" | "list" | "abilities" | "creation" | "stats" | "companion" | "sheet";
 
 export default function App() {
   const [currentStep, setCurrentStep] = useState<Step>("room");
@@ -118,11 +119,17 @@ export default function App() {
     characterId,
   ]);
 
-  // Cuando se une/crea una sala, se crea el registro del personaje en Mongo
-  const handleJoinRoom = async (code: string) => {
+  // Al unirse/crear una sala, primero se muestra la lista de personajes existentes
+  const handleJoinRoom = (code: string) => {
     setCampaignCode(code);
+    setCurrentStep("list");
+  };
+
+  // Crea un personaje vacío nuevo en Mongo y arranca el flujo de creación
+  const handleCreateNewCharacter = async () => {
+    if (!campaignCode) return;
     try {
-      const character = await crearPersonaje(code, {
+      const character = await crearPersonaje(campaignCode, {
         name: "",
         age: "",
         background: "",
@@ -139,11 +146,58 @@ export default function App() {
         speed: 9,
         attacks: [],
       });
+      // Reiniciar todo el estado local antes de arrancar un personaje nuevo
+      skipFirstSave.current = true;
       setCharacterId(character._id);
+      setSelectedEyes([]);
+      setSelectedDefects([]);
+      setSelectedAuras([]);
+      setSelectedCompanion(null);
+      setCharacterData({ name: "", age: "", background: "", appearance: "" });
+      setAbilityScores(DEFAULT_ABILITY_SCORES);
+      setSkillProficiencies({});
+      setSaveProficiencies({ fue: false, des: false, con: false, int: false, sab: false, car: false });
+      setHp(10);
+      setAc(10);
+      setSpeed(9);
+      setAttacks([]);
     } catch (err) {
       console.error("Error al crear el personaje:", err);
     }
     setCurrentStep("abilities");
+  };
+
+  // Carga un personaje ya existente al estado local y va directo a la ficha
+  const handleViewCharacter = (character: Character) => {
+    skipFirstSave.current = true;
+    setCharacterId(character._id);
+    setSelectedEyes(character.selectedEyes || []);
+    setSelectedDefects(character.selectedDefects || []);
+    setSelectedAuras(character.selectedAuras || []);
+    setSelectedCompanion(character.selectedCompanion || null);
+    setCharacterData({
+      name: character.name || "",
+      age: character.age || "",
+      background: character.background || "",
+      appearance: character.appearance || "",
+    });
+    setAbilityScores((character.abilityScores as AbilityScores) || DEFAULT_ABILITY_SCORES);
+    setSkillProficiencies(character.skillProficiencies || {});
+    setSaveProficiencies(
+      (character.saveProficiencies as Record<AbilityKey, boolean>) || {
+        fue: false,
+        des: false,
+        con: false,
+        int: false,
+        sab: false,
+        car: false,
+      }
+    );
+    setHp(character.hp ?? 10);
+    setAc(character.ac ?? 10);
+    setSpeed(character.speed ?? 9);
+    setAttacks(character.attacks || []);
+    setCurrentStep("sheet");
   };
 
   // Verificar si tiene defectos especiales
@@ -409,6 +463,16 @@ export default function App() {
     return <RoomGate onJoin={handleJoinRoom} />;
   }
 
+  if (currentStep === "list") {
+    return (
+      <CharacterList
+        campaignCode={campaignCode!}
+        onCreateNew={handleCreateNewCharacter}
+        onViewCharacter={handleViewCharacter}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-red-950 to-gray-900 text-gray-100">
       {/* Header */}
@@ -420,6 +484,13 @@ export default function App() {
           {campaignCode && (
             <p className="text-center text-xs text-gray-500 mt-1">
               Sala: <span className="font-mono text-gray-300">{campaignCode}</span>
+              {" · "}
+              <button
+                onClick={() => setCurrentStep("list")}
+                className="underline hover:text-gray-300"
+              >
+                Ver personajes de la sala
+              </button>
             </p>
           )}
           <p className="text-center text-gray-400 mt-2">

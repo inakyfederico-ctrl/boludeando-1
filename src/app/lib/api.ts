@@ -66,6 +66,11 @@ export async function listarPersonajes(campaignCode: string): Promise<Character[
   return handleResponse<Character[]>(res);
 }
 
+export async function obtenerPersonaje(id: string): Promise<Character> {
+  const res = await fetch(`/api/characters/${id}`);
+  return handleResponse<Character>(res);
+}
+
 export async function crearPersonaje(
   campaignCode: string,
   data: Partial<CharacterPayload>
