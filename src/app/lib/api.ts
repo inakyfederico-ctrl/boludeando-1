@@ -10,6 +10,14 @@ export type CharacterPayload = {
   selectedEyes: string[];
   selectedDefects: string[];
   selectedAuras: string[];
+  selectedCompanion: string | null;
+  abilityScores: Record<string, number>;
+  skillProficiencies: Record<string, string>;
+  saveProficiencies: Record<string, boolean>;
+  hp: number;
+  ac: number;
+  speed: number;
+  attacks: { id: string; name: string; bonus: string; damage: string }[];
 };
 
 export type Character = CharacterPayload & {

@@ -4,8 +4,17 @@ import { Defects } from "@/app/components/Defects";
 import { DemonicAuras } from "@/app/components/DemonicAuras";
 import { CharacterCreation } from "@/app/components/CharacterCreation";
 import { CharacterSheet } from "@/app/components/CharacterSheet";
+import { AbilityScoreStep } from "@/app/components/AbilityScoreStep";
+import { DemonCompanionStep } from "@/app/components/DemonCompanionStep";
+import { Attack } from "@/app/components/StatBlock";
 import { RoomGate } from "@/app/components/RoomGate";
 import { crearPersonaje, actualizarPersonaje } from "@/app/lib/api";
+import {
+  AbilityKey,
+  AbilityScores,
+  DEFAULT_ABILITY_SCORES,
+  SkillProficiency,
+} from "@/app/lib/dnd";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
 import { Card } from "@/app/components/ui/card";
 import { Separator } from "@/app/components/ui/separator";
@@ -29,7 +38,7 @@ const DEFECTS = [
   { id: "defect-11", pointsGained: 30, auraPoints: 0, affectsPrice: false },
 ];
 
-type Step = "room" | "abilities" | "creation" | "sheet";
+type Step = "room" | "abilities" | "creation" | "stats" | "companion" | "sheet";
 
 export default function App() {
   const [currentStep, setCurrentStep] = useState<Step>("room");
@@ -46,6 +55,23 @@ export default function App() {
     background: "",
     appearance: "",
   });
+
+  // Estadísticas estilo D&D
+  const [abilityScores, setAbilityScores] = useState<AbilityScores>(DEFAULT_ABILITY_SCORES);
+  const [selectedCompanion, setSelectedCompanion] = useState<string | null>(null);
+  const [skillProficiencies, setSkillProficiencies] = useState<Record<string, SkillProficiency>>({});
+  const [saveProficiencies, setSaveProficiencies] = useState<Record<AbilityKey, boolean>>({
+    fue: false,
+    des: false,
+    con: false,
+    int: false,
+    sab: false,
+    car: false,
+  });
+  const [hp, setHp] = useState(10);
+  const [ac, setAc] = useState(10);
+  const [speed, setSpeed] = useState(9);
+  const [attacks, setAttacks] = useState<Attack[]>([]);
 
   // Se activa recién después de que el personaje ya tiene un id
   // (evita disparar un guardado antes de que exista el registro)
@@ -65,10 +91,32 @@ export default function App() {
         selectedEyes,
         selectedDefects,
         selectedAuras,
+        selectedCompanion,
+        abilityScores,
+        skillProficiencies,
+        saveProficiencies,
+        hp,
+        ac,
+        speed,
+        attacks,
       }).catch((err) => console.error("Error al autoguardar:", err));
     }, 800);
     return () => clearTimeout(timeoutId);
-  }, [characterData, selectedEyes, selectedDefects, selectedAuras, characterId]);
+  }, [
+    characterData,
+    selectedEyes,
+    selectedDefects,
+    selectedAuras,
+    selectedCompanion,
+    abilityScores,
+    skillProficiencies,
+    saveProficiencies,
+    hp,
+    ac,
+    speed,
+    attacks,
+    characterId,
+  ]);
 
   // Cuando se une/crea una sala, se crea el registro del personaje en Mongo
   const handleJoinRoom = async (code: string) => {
@@ -82,6 +130,14 @@ export default function App() {
         selectedEyes: [],
         selectedDefects: [],
         selectedAuras: [],
+        selectedCompanion: null,
+        abilityScores: DEFAULT_ABILITY_SCORES,
+        skillProficiencies: {},
+        saveProficiencies: { fue: false, des: false, con: false, int: false, sab: false, car: false },
+        hp: 10,
+        ac: 10,
+        speed: 9,
+        attacks: [],
       });
       setCharacterId(character._id);
     } catch (err) {
@@ -146,6 +202,14 @@ export default function App() {
     setSelectedAuras((prev) =>
       prev.includes(auraId) ? prev.filter((id) => id !== auraId) : [...prev, auraId]
     );
+  };
+
+  const handleSkillProficiencyChange = (skillId: string, value: SkillProficiency) => {
+    setSkillProficiencies((prev) => ({ ...prev, [skillId]: value }));
+  };
+
+  const handleSaveProficiencyChange = (ability: AbilityKey, value: boolean) => {
+    setSaveProficiencies((prev) => ({ ...prev, [ability]: value }));
   };
 
   const renderStep = () => {
@@ -263,15 +327,35 @@ export default function App() {
                 Volver a Habilidades
               </Button>
               <Button
-                onClick={() => setCurrentStep("sheet")}
+                onClick={() => setCurrentStep("stats")}
                 className="bg-green-700 hover:bg-green-600 text-white"
                 size="lg"
               >
-                Ver Hoja de Personaje
+                Continuar a Características
                 <ChevronRight className="ml-2 w-5 h-5" />
               </Button>
             </div>
           </>
+        );
+
+      case "stats":
+        return (
+          <AbilityScoreStep
+            abilityScores={abilityScores}
+            onChange={setAbilityScores}
+            onBack={() => setCurrentStep("creation")}
+            onContinue={() => setCurrentStep("companion")}
+          />
+        );
+
+      case "companion":
+        return (
+          <DemonCompanionStep
+            selectedCompanion={selectedCompanion}
+            onSelect={setSelectedCompanion}
+            onBack={() => setCurrentStep("stats")}
+            onContinue={() => setCurrentStep("sheet")}
+          />
         );
 
       case "sheet":
@@ -282,17 +366,31 @@ export default function App() {
               selectedEyes={selectedEyes}
               selectedDefects={selectedDefects}
               selectedAuras={selectedAuras}
+              selectedCompanion={selectedCompanion}
+              abilityScores={abilityScores}
+              skillProficiencies={skillProficiencies}
+              saveProficiencies={saveProficiencies}
+              hp={hp}
+              ac={ac}
+              speed={speed}
+              attacks={attacks}
+              onChangeSkillProficiency={handleSkillProficiencyChange}
+              onChangeSaveProficiency={handleSaveProficiencyChange}
+              onChangeHp={setHp}
+              onChangeAc={setAc}
+              onChangeSpeed={setSpeed}
+              onChangeAttacks={setAttacks}
             />
 
             <div className="flex justify-between mt-8">
               <Button
-                onClick={() => setCurrentStep("creation")}
+                onClick={() => setCurrentStep("companion")}
                 variant="outline"
                 size="lg"
                 className="border-gray-700 text-gray-300 hover:bg-gray-800"
               >
                 <ChevronLeft className="mr-2 w-5 h-5" />
-                Volver a Creación
+                Volver a Compañero Demonio
               </Button>
               <Button
                 onClick={() => window.print()}
@@ -327,14 +425,18 @@ export default function App() {
           <p className="text-center text-gray-400 mt-2">
             {currentStep === "abilities" && "Selecciona tus habilidades demoniacas y defectos"}
             {currentStep === "creation" && "Define la identidad y historia de tu personaje"}
+            {currentStep === "stats" && "Repartí tus características"}
+            {currentStep === "companion" && "Elegí tu compañero demonio"}
             {currentStep === "sheet" && "Hoja de personaje completa"}
           </p>
           
           {/* Progress indicator */}
           <div className="flex justify-center gap-2 mt-4">
-            <div className={`h-2 w-24 rounded-full ${currentStep === "abilities" ? "bg-red-500" : "bg-gray-700"}`} />
-            <div className={`h-2 w-24 rounded-full ${currentStep === "creation" ? "bg-cyan-500" : "bg-gray-700"}`} />
-            <div className={`h-2 w-24 rounded-full ${currentStep === "sheet" ? "bg-green-500" : "bg-gray-700"}`} />
+            <div className={`h-2 w-16 rounded-full ${currentStep === "abilities" ? "bg-red-500" : "bg-gray-700"}`} />
+            <div className={`h-2 w-16 rounded-full ${currentStep === "creation" ? "bg-cyan-500" : "bg-gray-700"}`} />
+            <div className={`h-2 w-16 rounded-full ${currentStep === "stats" ? "bg-purple-500" : "bg-gray-700"}`} />
+            <div className={`h-2 w-16 rounded-full ${currentStep === "companion" ? "bg-pink-500" : "bg-gray-700"}`} />
+            <div className={`h-2 w-16 rounded-full ${currentStep === "sheet" ? "bg-green-500" : "bg-gray-700"}`} />
           </div>
         </div>
       </div>

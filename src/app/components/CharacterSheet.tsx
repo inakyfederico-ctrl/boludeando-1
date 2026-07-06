@@ -1,8 +1,18 @@
 import { Card } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
 import { Separator } from "@/app/components/ui/separator";
-import { Eye, Skull, Flame, User, FileText } from "lucide-react";
+import { Eye, Skull, Flame, User, FileText, Sparkles } from "lucide-react";
 import { DEMONIC_EYES, DEFECTS, DEMONIC_AURAS } from "@/app/data/gameData";
+import { StatBlock, Attack } from "@/app/components/StatBlock";
+import {
+  AbilityKey,
+  AbilityScores,
+  SkillProficiency,
+  claseFromAuras,
+  razaFromCompanion,
+  applyCompanionModifiers,
+  DEMON_COMPANIONS,
+} from "@/app/lib/dnd";
 
 interface CharacterSheetProps {
   characterData: {
@@ -14,18 +24,53 @@ interface CharacterSheetProps {
   selectedEyes: string[];
   selectedDefects: string[];
   selectedAuras: string[];
+  selectedCompanion: string | null;
+  abilityScores: AbilityScores;
+  skillProficiencies: Record<string, SkillProficiency>;
+  saveProficiencies: Record<AbilityKey, boolean>;
+  hp: number;
+  ac: number;
+  speed: number;
+  attacks: Attack[];
+  onChangeSkillProficiency: (skillId: string, value: SkillProficiency) => void;
+  onChangeSaveProficiency: (ability: AbilityKey, value: boolean) => void;
+  onChangeHp: (value: number) => void;
+  onChangeAc: (value: number) => void;
+  onChangeSpeed: (value: number) => void;
+  onChangeAttacks: (attacks: Attack[]) => void;
 }
 
-export function CharacterSheet({ 
-  characterData, 
-  selectedEyes, 
-  selectedDefects, 
-  selectedAuras 
+export function CharacterSheet({
+  characterData,
+  selectedEyes,
+  selectedDefects,
+  selectedAuras,
+  selectedCompanion,
+  abilityScores,
+  skillProficiencies,
+  saveProficiencies,
+  hp,
+  ac,
+  speed,
+  attacks,
+  onChangeSkillProficiency,
+  onChangeSaveProficiency,
+  onChangeHp,
+  onChangeAc,
+  onChangeSpeed,
+  onChangeAttacks,
 }: CharacterSheetProps) {
   // Obtener datos completos de los items seleccionados
   const selectedEyesData = DEMONIC_EYES.filter((eye) => selectedEyes.includes(eye.id));
   const selectedDefectsData = DEFECTS.filter((defect) => selectedDefects.includes(defect.id));
   const selectedAurasData = DEMONIC_AURAS.filter((aura) => selectedAuras.includes(aura.id));
+  const companion = DEMON_COMPANIONS.find((c) => c.id === selectedCompanion);
+
+  const clase = claseFromAuras(selectedAurasData.map((a) => a.color));
+  const raza = razaFromCompanion(selectedCompanion);
+  // Las características "finales" ya incluyen los modificadores del compañero demonio,
+  // igual que pasaría con los bonos raciales en D&D.
+  const finalAbilityScores = applyCompanionModifiers(abilityScores, selectedCompanion);
 
   return (
     <div className="space-y-6">
@@ -35,6 +80,24 @@ export function CharacterSheet({
           <h2 className="text-3xl font-bold text-cyan-400">Hoja de Personaje</h2>
         </div>
       </div>
+
+      <StatBlock
+        clase={clase}
+        raza={raza}
+        abilityScores={finalAbilityScores}
+        skillProficiencies={skillProficiencies}
+        saveProficiencies={saveProficiencies}
+        hp={hp}
+        ac={ac}
+        speed={speed}
+        attacks={attacks}
+        onChangeSkillProficiency={onChangeSkillProficiency}
+        onChangeSaveProficiency={onChangeSaveProficiency}
+        onChangeHp={onChangeHp}
+        onChangeAc={onChangeAc}
+        onChangeSpeed={onChangeSpeed}
+        onChangeAttacks={onChangeAttacks}
+      />
 
       {/* Información Básica */}
       <Card className="p-6 bg-black/40 border-gray-800">
@@ -75,6 +138,25 @@ export function CharacterSheet({
           </>
         )}
       </Card>
+
+      {/* Compañero Demonio */}
+      {companion && (
+        <Card className="p-6 bg-black/40 border-purple-900/50">
+          <div className="flex items-center gap-2 mb-4">
+            <Sparkles className="w-5 h-5 text-purple-400" />
+            <h3 className="text-xl font-semibold text-purple-400">
+              Compañero Demonio: {companion.name}
+            </h3>
+          </div>
+          <ul className="space-y-1">
+            {companion.special.map((trait, i) => (
+              <li key={i} className="text-gray-300 text-sm">
+                • {trait}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       {/* Ojos Demoniacos */}
       {selectedEyesData.length > 0 && (
