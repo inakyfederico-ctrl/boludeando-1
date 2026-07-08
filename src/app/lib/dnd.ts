@@ -138,9 +138,9 @@ export const DEMON_COMPANIONS: DemonCompanion[] = [
   {
     id: "nurgle",
     name: "Nurgle",
-    modifiers: { con: 3, sab: 1, des: -2 },
+    modifiers: { con: 3, sab: 1, des: -2, car: -1 },
     special: [
-      "+1 a la Clase de Armadura cuerpo a cuerpo",
+      "+2 a la Clase de Armadura cuerpo a cuerpo",
       "+2 a la Clase de Armadura a distancia (más de 10 pasos)",
       "Hueles mal constantemente",
       "Gran Juego: mecánica de tirada (a definir)",
@@ -151,7 +151,7 @@ export const DEMON_COMPANIONS: DemonCompanion[] = [
     name: "Tzeentch",
     modifiers: { des: -2, fue: -2, con: -2 },
     special: [
-      "Al comienzo de cada combate tirás 1d3: 1 = +4 Int, 2 = +4 Car, 3 = +4 Sab (dura ese combate)",
+      "Al comienzo de cada combate tirás 1d3: 1 = +6 Int, 2 = +6 Car, 3 = +6 Sab (dura ese combate)",
       "Elegís un hechizo de 3 auras demoniacas diferentes",
       "Gran Juego: mecánica de tirada (a definir)",
     ],
@@ -211,8 +211,8 @@ export const DEMON_COMPANIONS: DemonCompanion[] = [
     modifiers: { con: 4, int: -2 },
     special: [
       "-2 a la Clase de Armadura",
-      "+50% de Puntos de Golpe máximos",
-      "Al terminar un combate, recuperás la mitad de la vida que te falta",
+      "+30% de Puntos de Golpe máximos",
+      "Al terminar un combate, recuperás un tercio de la vida que te falta",
     ],
   },
 ];
