@@ -70,6 +70,17 @@ export async function buscarCampania(code: string): Promise<Campaign> {
   return handleResponse<Campaign>(res);
 }
 
+export async function borrarCampaniasVacias(
+  adminPassword: string
+): Promise<{ borradas: number; totalRevisadas: number }> {
+  const res = await fetch(`/api/campaigns/empty`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ adminPassword }),
+  });
+  return handleResponse<{ borradas: number; totalRevisadas: number }>(res);
+}
+
 // --- Personajes ---
 
 export async function listarPersonajes(campaignCode: string): Promise<Character[]> {

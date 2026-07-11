@@ -79,6 +79,29 @@ app.post('/api/campaigns', async (req, res) => {
     }
 });
 
+// Borra todas las salas que no tengan ningún personaje creado.
+// Requiere la contraseña de administrador.
+app.delete('/api/campaigns/empty', async (req, res) => {
+    try {
+        const { adminPassword } = req.body || {};
+        if (!process.env.ADMIN_PASSWORD || adminPassword !== process.env.ADMIN_PASSWORD) {
+            return res.status(403).json({ error: 'Contraseña de administrador incorrecta' });
+        }
+        const campaigns = await Campaign.find({});
+        let borradas = 0;
+        for (const campaign of campaigns) {
+            const cantidadPersonajes = await Character.countDocuments({ campaignCode: campaign.code });
+            if (cantidadPersonajes === 0) {
+                await Campaign.findByIdAndDelete(campaign._id);
+                borradas++;
+            }
+        }
+        res.json({ borradas, totalRevisadas: campaigns.length });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Verificar si un código de campaña existe (para "unirse a sala")
 app.get('/api/campaigns/:code', async (req, res) => {
     try {

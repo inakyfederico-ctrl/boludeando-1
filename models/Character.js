@@ -39,4 +39,4 @@ const CharacterSchema = new mongoose.Schema({
   secretCode: { type: String, required: true },
 }, { timestamps: true });
 
-export default mongoose.model('Character', CharacterSchema);s
+export default mongoose.model('Character', CharacterSchema);
