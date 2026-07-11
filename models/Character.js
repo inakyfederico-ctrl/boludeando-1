@@ -28,9 +28,10 @@ const CharacterSchema = new mongoose.Schema({
     default: { fue: false, des: false, con: false, int: false, sab: false, car: false },
   },
   hp: { type: Number, default: 10 },
-  ac: { type: Number, default: 10 },
   speed: { type: Number, default: 9 },
   attacks: { type: Array, default: [] },
+  selectedArmor: { type: String, default: "sin-armadura" },
+  autoExorcismoWeapon: { type: String, default: "" },
 
   // Código secreto generado al crear el personaje. Sirve como "contraseña"
   // para poder editarlo o borrarlo después. Nunca se devuelve en las

@@ -13,6 +13,7 @@ import {
   skillBonus,
   saveBonus,
   PROFICIENCY_BONUS,
+  ARMORS,
 } from "@/app/lib/dnd";
 
 export type Attack = { id: string; name: string; bonus: string; damage: string };
@@ -28,6 +29,8 @@ interface StatBlockProps {
   ac: number;
   speed: number;
   attacks: Attack[];
+  selectedArmor: string | null;
+  onChangeSelectedArmor: (armorId: string) => void;
   readOnly?: boolean;
   isAdmin?: boolean;
   onChangeSkillProficiency: (skillId: string, value: SkillProficiency) => void;
@@ -79,6 +82,8 @@ export function StatBlock({
   ac,
   speed,
   attacks,
+  selectedArmor,
+  onChangeSelectedArmor,
   readOnly = false,
   isAdmin = false,
   onChangeSkillProficiency,
@@ -88,6 +93,7 @@ export function StatBlock({
   onChangeAttacks,
 }: StatBlockProps) {
   const dexMod = abilityModifier(abilityScores.des);
+  const armorActual = ARMORS.find((a) => a.id === selectedArmor);
 
   const addAttack = () => {
     onChangeAttacks([
@@ -243,6 +249,25 @@ export function StatBlock({
               </div>
             ))}
           </div>
+        </Card>
+
+        <Card className="p-6 bg-black/40 border-gray-800">
+          <h3 className="text-lg font-semibold text-gray-300 mb-3">Armadura</h3>
+          <select
+            value={selectedArmor ?? "sin-armadura"}
+            onChange={(e) => onChangeSelectedArmor(e.target.value)}
+            disabled={readOnly}
+            className="w-full px-3 py-2 rounded-md bg-gray-900/60 border border-gray-700 text-gray-100 text-sm disabled:opacity-60"
+          >
+            {ARMORS.map((armor) => (
+              <option key={armor.id} value={armor.id}>
+                {armor.name} {armor.acBonus !== 0 ? `(${formatModifier(armor.acBonus)} CA)` : ""}
+              </option>
+            ))}
+          </select>
+          {armorActual?.description && (
+            <p className="text-xs text-gray-500 mt-2">{armorActual.description}</p>
+          )}
         </Card>
       </div>
 

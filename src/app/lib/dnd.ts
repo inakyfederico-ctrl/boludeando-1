@@ -240,6 +240,37 @@ export function applyCompanionModifiers(
   return result;
 }
 
+// --- Catálogo de Armaduras ---
+// Igual de fácil de editar que los compañeros demonio: cada armadura es un
+// objeto simple con su bono a la Clase de Armadura. Para sumar una nueva,
+// copiá un bloque, cambiale el "id" (único) y completá los datos.
+export type Armor = {
+  id: string;
+  name: string;
+  acBonus: number;
+  description?: string;
+};
+
+export const ARMORS: Armor[] = [
+  {
+    id: "sin-armadura",
+    name: "Sin armadura",
+    acBonus: 0,
+    description: "No lleva ninguna protección extra.",
+  },
+  {
+    id: "ropas-reforzadas",
+    name: "Ropas reforzadas",
+    acBonus: 1,
+    description: "Tela gruesa con refuerzos livianos de cuero.",
+  },
+];
+
+export function armorAcBonus(armorId: string | null): number {
+  const armor = ARMORS.find((a) => a.id === armorId);
+  return armor?.acBonus ?? 0;
+}
+
 export function razaFromCompanion(companionId: string | null): string {
   const companion = DEMON_COMPANIONS.find((c) => c.id === companionId);
   return companion ? companion.name : "Sin definir";
@@ -260,9 +291,13 @@ export function computeMaxHp(finalScores: AbilityScores, companionId: string | n
 }
 
 // Clase de Armadura = 10 + modificador de Destreza + el acModifier fijo
-// del compañero demonio (si tiene).
-export function computeAc(finalScores: AbilityScores, companionId: string | null): number {
+// del compañero demonio (si tiene) + el bono de la armadura equipada.
+export function computeAc(
+  finalScores: AbilityScores,
+  companionId: string | null,
+  armorId: string | null = null
+): number {
   const companion = DEMON_COMPANIONS.find((c) => c.id === companionId);
   const desMod = abilityModifier(finalScores.des);
-  return BASE_AC + desMod + (companion?.acModifier ?? 0);
+  return BASE_AC + desMod + (companion?.acModifier ?? 0) + armorAcBonus(armorId);
 }

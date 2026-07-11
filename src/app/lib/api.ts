@@ -15,9 +15,10 @@ export type CharacterPayload = {
   skillProficiencies: Record<string, string>;
   saveProficiencies: Record<string, boolean>;
   hp: number;
-  ac: number;
   speed: number;
   attacks: { id: string; name: string; bonus: string; damage: string }[];
+  selectedArmor: string;
+  autoExorcismoWeapon: string;
 };
 
 export type Character = CharacterPayload & {

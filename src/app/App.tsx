@@ -79,6 +79,8 @@ export default function App() {
   const [hp, setHp] = useState(20);
   const [speed, setSpeed] = useState(9);
   const [attacks, setAttacks] = useState<Attack[]>([]);
+  const [selectedArmor, setSelectedArmor] = useState<string>("sin-armadura");
+  const [autoExorcismoWeapon, setAutoExorcismoWeapon] = useState("");
 
   // --- Sistema de código secreto ---
   // secretCode: el código que "desbloquea" edición/borrado del personaje actual.
@@ -121,6 +123,8 @@ export default function App() {
     hp,
     speed,
     attacks,
+    selectedArmor,
+    autoExorcismoWeapon,
   });
 
   // Autoguardado: solo corre si el personaje YA se guardó al menos una vez
@@ -155,6 +159,8 @@ export default function App() {
     hp,
     speed,
     attacks,
+    selectedArmor,
+    autoExorcismoWeapon,
     characterId,
     secretCode,
     isAdmin,
@@ -185,6 +191,8 @@ export default function App() {
     setHp(20);
     setSpeed(9);
     setAttacks([]);
+    setSelectedArmor("sin-armadura");
+    setAutoExorcismoWeapon("");
     setSaveStatus("idle");
     setCurrentStep("abilities");
   };
@@ -318,6 +326,8 @@ export default function App() {
     setHp(character.hp ?? 20);
     setSpeed(character.speed ?? 9);
     setAttacks(character.attacks || []);
+    setSelectedArmor(character.selectedArmor || "sin-armadura");
+    setAutoExorcismoWeapon(character.autoExorcismoWeapon || "");
     setCurrentStep("sheet");
   };
 
@@ -611,6 +621,10 @@ export default function App() {
               hp={hp}
               speed={speed}
               attacks={attacks}
+              selectedArmor={selectedArmor}
+              onChangeSelectedArmor={setSelectedArmor}
+              autoExorcismoWeapon={autoExorcismoWeapon}
+              onChangeAutoExorcismoWeapon={setAutoExorcismoWeapon}
               readOnly={!!characterId && !secretCode && !isAdmin}
               isAdmin={isAdmin}
               onChangeSkillProficiency={handleSkillProficiencyChange}

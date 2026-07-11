@@ -33,8 +33,12 @@ interface CharacterSheetProps {
   hp: number;
   speed: number;
   attacks: Attack[];
+  selectedArmor: string | null;
+  onChangeSelectedArmor: (armorId: string) => void;
   readOnly?: boolean;
   isAdmin?: boolean;
+  autoExorcismoWeapon: string;
+  onChangeAutoExorcismoWeapon: (value: string) => void;
   onChangeSkillProficiency: (skillId: string, value: SkillProficiency) => void;
   onChangeSaveProficiency: (ability: AbilityKey, value: boolean) => void;
   onChangeHp: (value: number) => void;
@@ -54,8 +58,12 @@ export function CharacterSheet({
   hp,
   speed,
   attacks,
+  selectedArmor,
+  onChangeSelectedArmor,
   readOnly = false,
   isAdmin = false,
+  autoExorcismoWeapon,
+  onChangeAutoExorcismoWeapon,
   onChangeSkillProficiency,
   onChangeSaveProficiency,
   onChangeHp,
@@ -74,7 +82,7 @@ export function CharacterSheet({
   // igual que pasaría con los bonos raciales en D&D.
   const finalAbilityScores = applyCompanionModifiers(abilityScores, selectedCompanion);
   const maxHp = computeMaxHp(finalAbilityScores, selectedCompanion);
-  const ac = computeAc(finalAbilityScores, selectedCompanion);
+  const ac = computeAc(finalAbilityScores, selectedCompanion, selectedArmor);
 
   return (
     <div className="space-y-6">
@@ -96,6 +104,8 @@ export function CharacterSheet({
         ac={ac}
         speed={speed}
         attacks={attacks}
+        selectedArmor={selectedArmor}
+        onChangeSelectedArmor={onChangeSelectedArmor}
         readOnly={readOnly}
         isAdmin={isAdmin}
         onChangeSkillProficiency={onChangeSkillProficiency}
@@ -217,6 +227,21 @@ export function CharacterSheet({
                     <Badge className="bg-yellow-800">Reduce costos de ojos</Badge>
                   )}
                 </div>
+                {defect.id === "defect-10" && (
+                  <div className="mt-3">
+                    <label className="text-sm text-gray-400 block mb-1">
+                      Artefactos Cortantes (describí el arma que te otorga este defecto)
+                    </label>
+                    <textarea
+                      value={autoExorcismoWeapon}
+                      onChange={(e) => onChangeAutoExorcismoWeapon(e.target.value)}
+                      disabled={readOnly}
+                      placeholder="Ej: Dos dagas rituales gemelas de hueso negro..."
+                      rows={2}
+                      className="w-full px-3 py-2 rounded-md bg-black/40 border border-gray-700 text-gray-100 text-sm disabled:opacity-60"
+                    />
+                  </div>
+                )}
               </div>
             ))}
           </div>
