@@ -8,9 +8,11 @@ import {
   applyCompanionModifiers,
   formatModifier,
 } from "@/app/lib/dnd";
+import { DEFECTS } from "@/app/data/gameData";
 
 interface DemonCompanionStepProps {
   selectedCompanion: string | null;
+  selectedDefects: string[];
   onSelect: (companionId: string) => void;
   onContinue: () => void;
   onBack: () => void;
@@ -18,10 +20,15 @@ interface DemonCompanionStepProps {
 
 export function DemonCompanionStep({
   selectedCompanion,
+  selectedDefects,
   onSelect,
   onContinue,
   onBack,
 }: DemonCompanionStepProps) {
+  const companionActual = DEMON_COMPANIONS.find((c) => c.id === selectedCompanion);
+  const seleccionInvalida =
+    !!companionActual?.blockedByDefect && selectedDefects.includes(companionActual.blockedByDefect);
+
   return (
     <div className="space-y-6">
       <div className="text-center">
@@ -30,11 +37,21 @@ export function DemonCompanionStep({
           Elegí qué demonio acompaña a tu personaje. Le da modificadores a tus
           características y algunos rasgos especiales.
         </p>
+        {seleccionInvalida && (
+          <p className="text-sm text-red-400 mt-2">
+            Tu compañero elegido quedó bloqueado por un defecto que agregaste. Elegí otro para continuar.
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {DEMON_COMPANIONS.map((companion) => {
           const isSelected = selectedCompanion === companion.id;
+          const bloqueadoPor =
+            companion.blockedByDefect && selectedDefects.includes(companion.blockedByDefect)
+              ? DEFECTS.find((d) => d.id === companion.blockedByDefect)?.name ?? "un defecto elegido"
+              : null;
+          const bloqueado = !!bloqueadoPor;
           // Vista previa: cómo quedarían las características base (8 en todo)
           // con los modificadores de este compañero, solo a modo de ejemplo visual.
           const preview = applyCompanionModifiers(DEFAULT_ABILITY_SCORES, companion.id);
@@ -42,14 +59,22 @@ export function DemonCompanionStep({
           return (
             <Card
               key={companion.id}
-              onClick={() => onSelect(companion.id)}
-              className={`p-5 cursor-pointer transition-colors bg-black/40 border ${
-                isSelected
-                  ? "border-purple-500 ring-1 ring-purple-500"
-                  : "border-gray-800 hover:border-gray-600"
+              onClick={() => !bloqueado && onSelect(companion.id)}
+              className={`p-5 transition-colors bg-black/40 border ${
+                bloqueado
+                  ? "opacity-40 cursor-not-allowed border-gray-800"
+                  : isSelected
+                  ? "cursor-pointer border-purple-500 ring-1 ring-purple-500"
+                  : "cursor-pointer border-gray-800 hover:border-gray-600"
               }`}
             >
               <h3 className="text-xl font-bold text-gray-100 mb-2">{companion.name}</h3>
+
+              {bloqueado && (
+                <p className="text-xs text-red-400 mb-2">
+                  Bloqueado: incompatible con el defecto "{bloqueadoPor}"
+                </p>
+              )}
 
               <div className="flex flex-wrap gap-2 mb-3">
                 {ABILITY_KEYS.filter((key) => companion.modifiers[key]).map((key) => {
@@ -92,7 +117,7 @@ export function DemonCompanionStep({
         <Button
           className="bg-purple-700 hover:bg-purple-600 text-white"
           onClick={onContinue}
-          disabled={!selectedCompanion}
+          disabled={!selectedCompanion || seleccionInvalida}
         >
           Continuar
         </Button>

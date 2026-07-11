@@ -127,6 +127,10 @@ export type DemonCompanion = {
   acModifier?: number;
   // Multiplicador sobre los Puntos de Golpe máximos ya calculados (ej: 1.5 = +50%)
   hpMultiplier?: number;
+  // Si el personaje tiene este defecto (por id), no puede elegir este
+  // compañero. Sirve para incompatibilidades tipo "no podés tener un ángel
+  // si tu personaje está movido por el pecado".
+  blockedByDefect?: string;
 };
 
 export const DEMON_COMPANIONS: DemonCompanion[] = [
@@ -136,7 +140,7 @@ export const DEMON_COMPANIONS: DemonCompanion[] = [
     modifiers: { fue: 3, con: 1, int: -1, sab: -1, car: -1 },
     acModifier: -2,
     special: [
-      "-1 a la Clase de Armadura (ya aplicado automáticamente)",
+      "-2 a la Clase de Armadura (ya aplicado automáticamente)",
       "+2 al dar en ataques cuerpo a cuerpo",
       "+20% de daño causado",
       "Gran Juego: mecánica de tirada (a definir)",
@@ -148,7 +152,7 @@ export const DEMON_COMPANIONS: DemonCompanion[] = [
     modifiers: { con: 3, sab: 1, des: -2 },
     acModifier: 1,
     special: [
-      "+2 a la Clase de Armadura (ya aplicado automáticamente)",
+      "+1 a la Clase de Armadura (ya aplicado automáticamente)",
       "+2 adicional a la Clase de Armadura si atacan a distancia (más de 10 pasos) — aplicalo manualmente en ese caso",
       "Hueles mal constantemente",
       "Gran Juego: mecánica de tirada (a definir)",
@@ -159,7 +163,7 @@ export const DEMON_COMPANIONS: DemonCompanion[] = [
     name: "Tzeentch",
     modifiers: { des: -2, fue: -2, con: -2 },
     special: [
-      "Al comienzo de cada combate tirás 1d3: 1 = +6 Int, 2 = +6 Car, 3 = +6 Sab (dura ese combate)",
+      "Al comienzo de cada combate tirás 1d3: 1 = +4 Int, 2 = +4 Car, 3 = +4 Sab (dura ese combate)",
       "Elegís un hechizo de 3 auras demoniacas diferentes",
       "Gran Juego: mecánica de tirada (a definir)",
     ],
@@ -182,6 +186,28 @@ export const DEMON_COMPANIONS: DemonCompanion[] = [
     special: [
       "Sabés cuánto tiempo llevan muertos los cadáveres cercanos",
       "Tus ataques envenenan: el objetivo recibe 1 de daño al final de su turno",
+    ],
+  },
+  {
+    id: "angel 1",
+    name: "San Gabriel",
+    modifiers: { des: 3, car: -2 },
+    blockedByDefect: "defect-5", // Impulso de Pecado
+    special: [
+      "Hace que entre aliados haya comunicación mental directa",
+      "Moralmente bueno sí o sí. En caso que no, pierdes vida directa",
+      "Presencia angelical: la gente se relaja a tu alrededor mientras que los demonios se inquietan",
+    ],
+  },
+  {
+    id: "angel 2",
+    name: "San Miguel",
+    modifiers: { des: -2, car: 3 },
+    blockedByDefect: "defect-5", // Impulso de Pecado
+    special: [
+      "+2 en acciones conjuntas o entre aliados",
+      "Moralmente bueno sí o sí. En caso que no, pierdes vida directa",
+      "Comandante angelical: +2 de iniciativa a aliados",
     ],
   },
   {
@@ -216,33 +242,13 @@ export const DEMON_COMPANIONS: DemonCompanion[] = [
   {
     id: "leviatan",
     name: "Leviatán",
-    modifiers: { con: 4, des: -2, int: -1 },
+    modifiers: { con: 4, int: -2 },
     acModifier: -2,
-    hpMultiplier: 1.4,
+    hpMultiplier: 1.5,
     special: [
       "-2 a la Clase de Armadura (ya aplicado automáticamente)",
-      "+40% de Puntos de Golpe máximos (ya aplicado automáticamente)",
-      "Al terminar un combate, recuperás un tercio de la vida que te falta",
-    ],
-  },
-  {
-    id: "angel 1",
-    name: "san gabriel",
-    modifiers: { des: 3, car: -2 },
-    special: [
-      "hace que entre aliados haya comunicacion mental directa",
-      "moralmente bueno si o si. en caso que no pierdes vida directa",
-      "presencia angelical: la gente se relaja a tu alrededor mientras que los demonios se inquietan",
-    ],
-  },
-  {
-    id: "angel 2",
-    name: "san miguel",
-    modifiers: { des: -2, car: 3 },
-    special: [
-      "+2 en acciones conjuntas o entre aliados",
-      "moralmente bueno si o si. en caso que no pierdes vida directa",
-      "comandante angelical: +2 de iniciativa a aliados",
+      "+50% de Puntos de Golpe máximos (ya aplicado automáticamente)",
+      "Al terminar un combate, recuperás la mitad de la vida que te falta",
     ],
   },
 ];
@@ -284,54 +290,6 @@ export const ARMORS: Armor[] = [
     acBonus: 1,
     description: "Tela gruesa con refuerzos livianos de cuero.",
   },
-  {
-    id: "ropas-agiles",
-    name: "armadura ligera",
-    acBonus: 0,
-    description: "+1 en destreza",
-  },  
-    {
-    id: "armadura-reveladora",
-    name: "armadura reveladora",
-    acBonus: -1,
-    description: "+ 1 carisma +1 en destreza(solo para mujeres). tienes mas oportunidades de seducir",
-  },
-      {
-    id: "armadura-carne",
-    name: "armadura de carne",
-    acBonus: -1,
-    description: "al comienzo del combate tienes 1d6+constitucion de vida falsa",
-  },
-      {
-    id: "armadura-oscura",
-    name: "armadura oscura",
-    acBonus: 0,
-    description: "ventaja en sigilo si existe suficiente oscuridad",
-  },
-       {
-    id: "armadura-tirador",
-    name: "armadura del tirador",
-    acBonus: -1,
-    description: "-2 a ataques a 15 pies o menos, +2 en ataques a 25 pies o mas",
-  }, 
-      {
-    id: "armadura-pesada",
-    name: "caballero de placas",
-    acBonus: 2,
-    description: "desventaja en sigilo y pierdes 10 pasos al moverte. aparte de ser llamativo y no encajar",
-  }, 
-      {
-    id: "armadura-magica",
-    name: "demacianita",
-    acBonus: -1,
-    description: "resistencia a auras (recibes la mitad de daño de auras demoniacas)",
-  }, 
-      {
-    id: "armadura-vagabundo",
-    name: "pobre",
-    acBonus: 0,
-    description: "no eres la prioridad hasta que ataques. la gente te tratara como tal",
-  }, 
 ];
 
 export function armorAcBonus(armorId: string | null): number {

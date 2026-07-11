@@ -560,6 +560,7 @@ export default function App() {
         return (
           <DemonCompanionStep
             selectedCompanion={selectedCompanion}
+            selectedDefects={selectedDefects}
             onSelect={setSelectedCompanion}
             onBack={() => setCurrentStep("stats")}
             onContinue={() => setCurrentStep("sheet")}
