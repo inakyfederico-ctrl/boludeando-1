@@ -242,7 +242,7 @@ export const DEMON_COMPANIONS: DemonCompanion[] = [
   {
     id: "leviatan",
     name: "Leviatán",
-    modifiers: { con: 4, int: -2 },
+    modifiers: { con: 4,des: -2, int: -1 },
     acModifier: -2,
     hpMultiplier: 1.4,
     special: [
