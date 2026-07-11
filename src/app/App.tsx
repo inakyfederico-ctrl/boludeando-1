@@ -76,8 +76,7 @@ export default function App() {
     sab: false,
     car: false,
   });
-  const [hp, setHp] = useState(10);
-  const [ac, setAc] = useState(10);
+  const [hp, setHp] = useState(20);
   const [speed, setSpeed] = useState(9);
   const [attacks, setAttacks] = useState<Attack[]>([]);
 
@@ -120,7 +119,6 @@ export default function App() {
     skillProficiencies,
     saveProficiencies,
     hp,
-    ac,
     speed,
     attacks,
   });
@@ -155,7 +153,6 @@ export default function App() {
     skillProficiencies,
     saveProficiencies,
     hp,
-    ac,
     speed,
     attacks,
     characterId,
@@ -185,8 +182,7 @@ export default function App() {
     setAbilityScores(DEFAULT_ABILITY_SCORES);
     setSkillProficiencies({});
     setSaveProficiencies({ fue: false, des: false, con: false, int: false, sab: false, car: false });
-    setHp(10);
-    setAc(10);
+    setHp(20);
     setSpeed(9);
     setAttacks([]);
     setSaveStatus("idle");
@@ -319,8 +315,7 @@ export default function App() {
         car: false,
       }
     );
-    setHp(character.hp ?? 10);
-    setAc(character.ac ?? 10);
+    setHp(character.hp ?? 20);
     setSpeed(character.speed ?? 9);
     setAttacks(character.attacks || []);
     setCurrentStep("sheet");
@@ -614,7 +609,6 @@ export default function App() {
               skillProficiencies={skillProficiencies}
               saveProficiencies={saveProficiencies}
               hp={hp}
-              ac={ac}
               speed={speed}
               attacks={attacks}
               readOnly={!!characterId && !secretCode && !isAdmin}
@@ -622,7 +616,6 @@ export default function App() {
               onChangeSkillProficiency={handleSkillProficiencyChange}
               onChangeSaveProficiency={handleSaveProficiencyChange}
               onChangeHp={setHp}
-              onChangeAc={setAc}
               onChangeSpeed={setSpeed}
               onChangeAttacks={setAttacks}
             />

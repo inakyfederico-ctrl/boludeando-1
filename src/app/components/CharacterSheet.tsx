@@ -11,6 +11,8 @@ import {
   claseFromAuras,
   razaFromCompanion,
   applyCompanionModifiers,
+  computeMaxHp,
+  computeAc,
   DEMON_COMPANIONS,
 } from "@/app/lib/dnd";
 
@@ -29,14 +31,13 @@ interface CharacterSheetProps {
   skillProficiencies: Record<string, SkillProficiency>;
   saveProficiencies: Record<AbilityKey, boolean>;
   hp: number;
-  ac: number;
   speed: number;
   attacks: Attack[];
   readOnly?: boolean;
+  isAdmin?: boolean;
   onChangeSkillProficiency: (skillId: string, value: SkillProficiency) => void;
   onChangeSaveProficiency: (ability: AbilityKey, value: boolean) => void;
   onChangeHp: (value: number) => void;
-  onChangeAc: (value: number) => void;
   onChangeSpeed: (value: number) => void;
   onChangeAttacks: (attacks: Attack[]) => void;
 }
@@ -51,14 +52,13 @@ export function CharacterSheet({
   skillProficiencies,
   saveProficiencies,
   hp,
-  ac,
   speed,
   attacks,
   readOnly = false,
+  isAdmin = false,
   onChangeSkillProficiency,
   onChangeSaveProficiency,
   onChangeHp,
-  onChangeAc,
   onChangeSpeed,
   onChangeAttacks,
 }: CharacterSheetProps) {
@@ -73,6 +73,8 @@ export function CharacterSheet({
   // Las características "finales" ya incluyen los modificadores del compañero demonio,
   // igual que pasaría con los bonos raciales en D&D.
   const finalAbilityScores = applyCompanionModifiers(abilityScores, selectedCompanion);
+  const maxHp = computeMaxHp(finalAbilityScores, selectedCompanion);
+  const ac = computeAc(finalAbilityScores, selectedCompanion);
 
   return (
     <div className="space-y-6">
@@ -90,14 +92,15 @@ export function CharacterSheet({
         skillProficiencies={skillProficiencies}
         saveProficiencies={saveProficiencies}
         hp={hp}
+        maxHp={maxHp}
         ac={ac}
         speed={speed}
         attacks={attacks}
         readOnly={readOnly}
+        isAdmin={isAdmin}
         onChangeSkillProficiency={onChangeSkillProficiency}
         onChangeSaveProficiency={onChangeSaveProficiency}
         onChangeHp={onChangeHp}
-        onChangeAc={onChangeAc}
         onChangeSpeed={onChangeSpeed}
         onChangeAttacks={onChangeAttacks}
       />

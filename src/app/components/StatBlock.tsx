@@ -24,6 +24,7 @@ interface StatBlockProps {
   skillProficiencies: Record<string, SkillProficiency>;
   saveProficiencies: Record<AbilityKey, boolean>;
   hp: number;
+  maxHp: number;
   ac: number;
   speed: number;
   attacks: Attack[];
@@ -32,7 +33,6 @@ interface StatBlockProps {
   onChangeSkillProficiency: (skillId: string, value: SkillProficiency) => void;
   onChangeSaveProficiency: (ability: AbilityKey, value: boolean) => void;
   onChangeHp: (value: number) => void;
-  onChangeAc: (value: number) => void;
   onChangeSpeed: (value: number) => void;
   onChangeAttacks: (attacks: Attack[]) => void;
 }
@@ -75,6 +75,7 @@ export function StatBlock({
   skillProficiencies,
   saveProficiencies,
   hp,
+  maxHp,
   ac,
   speed,
   attacks,
@@ -83,7 +84,6 @@ export function StatBlock({
   onChangeSkillProficiency,
   onChangeSaveProficiency,
   onChangeHp,
-  onChangeAc,
   onChangeSpeed,
   onChangeAttacks,
 }: StatBlockProps) {
@@ -134,13 +134,19 @@ export function StatBlock({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
             <div className="p-2 bg-gray-900/60 border border-gray-700 rounded-md">
               <p className="text-xs text-gray-500">Puntos de golpe</p>
-              <input
-                type="number"
-                value={hp}
-                onChange={(e) => onChangeHp(Number(e.target.value))}
-                disabled={readOnly}
-                className="w-full bg-transparent text-center text-xl font-bold text-gray-100 outline-none disabled:opacity-60"
-              />
+              <div className="flex items-center justify-center gap-1">
+                <input
+                  type="number"
+                  value={hp}
+                  onChange={(e) => onChangeHp(Number(e.target.value))}
+                  disabled={readOnly}
+                  className="w-10 bg-transparent text-center text-xl font-bold text-gray-100 outline-none disabled:opacity-60"
+                />
+                <span className="text-gray-500">/</span>
+                <span className="text-xl font-bold text-gray-400" title="Máximo calculado: 20 + (mod. Constitución x2), ajustado por el compañero demonio">
+                  {maxHp}
+                </span>
+              </div>
             </div>
             <div className="p-2 bg-gray-900/60 border border-gray-700 rounded-md">
               <p className="text-xs text-gray-500">Iniciativa</p>
@@ -158,18 +164,17 @@ export function StatBlock({
             </div>
             <div className="p-2 bg-gray-900/60 border border-gray-700 rounded-md">
               <p className="text-xs text-gray-500">Clase de armadura</p>
-              <input
-                type="number"
-                value={ac}
-                onChange={(e) => onChangeAc(Number(e.target.value))}
-                disabled={!isAdmin}
-                title={!isAdmin ? "Solo el administrador puede modificar la Clase de Armadura" : undefined}
-                className="w-full bg-transparent text-center text-xl font-bold text-gray-100 outline-none disabled:opacity-60"
-              />
+              <p
+                className="text-xl font-bold text-gray-100"
+                title="Calculada: 10 + mod. Destreza + bono/penalización del compañero demonio"
+              >
+                {ac}
+              </p>
             </div>
           </div>
           <p className="text-xs text-gray-500 mt-3">
-            Bonif. de competencia: {formatModifier(PROFICIENCY_BONUS)} (nivel 1)
+            Bonif. de competencia: {formatModifier(PROFICIENCY_BONUS)} (nivel 1) · PG máx. y CA se calculan
+            solos a partir de tus características y tu compañero demonio
           </p>
         </Card>
 

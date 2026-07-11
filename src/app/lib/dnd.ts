@@ -121,6 +121,12 @@ export type DemonCompanion = {
   name: string;
   modifiers: CompanionModifiers;
   special: string[];
+  // Bono/penalización FIJO a la Clase de Armadura, aplicado automáticamente
+  // al cálculo final (para bonos situacionales que no se puedan automatizar,
+  // se dejan solo como texto en "special").
+  acModifier?: number;
+  // Multiplicador sobre los Puntos de Golpe máximos ya calculados (ej: 1.5 = +50%)
+  hpMultiplier?: number;
 };
 
 export const DEMON_COMPANIONS: DemonCompanion[] = [
@@ -128,8 +134,9 @@ export const DEMON_COMPANIONS: DemonCompanion[] = [
     id: "khorne",
     name: "Khorne",
     modifiers: { fue: 3, con: 1, int: -1, sab: -1, car: -1 },
+    acModifier: -2,
     special: [
-      "-2 a la Clase de Armadura",
+      "-2 a la Clase de Armadura (ya aplicado automáticamente)",
       "+2 al dar en ataques cuerpo a cuerpo",
       "+20% de daño causado",
       "Gran Juego: mecánica de tirada (a definir)",
@@ -138,10 +145,11 @@ export const DEMON_COMPANIONS: DemonCompanion[] = [
   {
     id: "nurgle",
     name: "Nurgle",
-    modifiers: { con: 3, sab: 1, des: -2, car: -1 },
+    modifiers: { con: 3, sab: 1, des: -2 },
+    acModifier: 1,
     special: [
-      "+2 a la Clase de Armadura cuerpo a cuerpo",
-      "+2 a la Clase de Armadura a distancia (más de 10 pasos)",
+      "+1 a la Clase de Armadura (ya aplicado automáticamente)",
+      "+2 adicional a la Clase de Armadura si atacan a distancia (más de 10 pasos) — aplicalo manualmente en ese caso",
       "Hueles mal constantemente",
       "Gran Juego: mecánica de tirada (a definir)",
     ],
@@ -151,7 +159,7 @@ export const DEMON_COMPANIONS: DemonCompanion[] = [
     name: "Tzeentch",
     modifiers: { des: -2, fue: -2, con: -2 },
     special: [
-      "Al comienzo de cada combate tirás 1d3: 1 = +6 Int, 2 = +6 Car, 3 = +6 Sab (dura ese combate)",
+      "Al comienzo de cada combate tirás 1d3: 1 = +4 Int, 2 = +4 Car, 3 = +4 Sab (dura ese combate)",
       "Elegís un hechizo de 3 auras demoniacas diferentes",
       "Gran Juego: mecánica de tirada (a definir)",
     ],
@@ -209,10 +217,12 @@ export const DEMON_COMPANIONS: DemonCompanion[] = [
     id: "leviatan",
     name: "Leviatán",
     modifiers: { con: 4, int: -2 },
+    acModifier: -2,
+    hpMultiplier: 1.5,
     special: [
-      "-2 a la Clase de Armadura",
-      "+30% de Puntos de Golpe máximos",
-      "Al terminar un combate, recuperás un tercio de la vida que te falta",
+      "-2 a la Clase de Armadura (ya aplicado automáticamente)",
+      "+50% de Puntos de Golpe máximos (ya aplicado automáticamente)",
+      "Al terminar un combate, recuperás la mitad de la vida que te falta",
     ],
   },
 ];
@@ -233,4 +243,26 @@ export function applyCompanionModifiers(
 export function razaFromCompanion(companionId: string | null): string {
   const companion = DEMON_COMPANIONS.find((c) => c.id === companionId);
   return companion ? companion.name : "Sin definir";
+}
+
+// --- Cálculo automático de Vida Máxima y Clase de Armadura ---
+// Vida Máxima = 20 (base) + (modificador de Constitución x2), multiplicado
+// por el hpMultiplier del compañero si tiene (ej: Leviatán +50%).
+export const BASE_HP = 20;
+export const BASE_AC = 10;
+
+export function computeMaxHp(finalScores: AbilityScores, companionId: string | null): number {
+  const companion = DEMON_COMPANIONS.find((c) => c.id === companionId);
+  const conMod = abilityModifier(finalScores.con);
+  const base = BASE_HP + conMod * 2;
+  const mult = companion?.hpMultiplier ?? 1;
+  return Math.max(1, Math.round(base * mult));
+}
+
+// Clase de Armadura = 10 + modificador de Destreza + el acModifier fijo
+// del compañero demonio (si tiene).
+export function computeAc(finalScores: AbilityScores, companionId: string | null): number {
+  const companion = DEMON_COMPANIONS.find((c) => c.id === companionId);
+  const desMod = abilityModifier(finalScores.des);
+  return BASE_AC + desMod + (companion?.acModifier ?? 0);
 }
