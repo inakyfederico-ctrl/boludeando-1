@@ -81,6 +81,19 @@ export async function borrarCampaniasVacias(
   return handleResponse<{ borradas: number; totalRevisadas: number }>(res);
 }
 
+// Verifica si una contraseña es la de administrador, sin necesitar un
+// personaje ya creado (útil mientras se está armando uno nuevo).
+export async function verificarAdmin(adminPassword: string): Promise<boolean> {
+  const res = await fetch(`/api/admin/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ adminPassword }),
+  });
+  if (res.status === 403) return false;
+  await handleResponse<{ ok: boolean }>(res);
+  return true;
+}
+
 // --- Personajes ---
 
 export async function listarPersonajes(campaignCode: string): Promise<Character[]> {

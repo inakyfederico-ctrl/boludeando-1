@@ -13,6 +13,7 @@ import {
   crearPersonaje,
   actualizarPersonaje,
   borrarPersonaje,
+  verificarAdmin,
   Character,
   CharacterPayload,
   Credentials,
@@ -227,10 +228,32 @@ export default function App() {
   // Intenta desbloquear la edición probando el valor como código secreto
   // propio del personaje, y si falla, como contraseña de administrador.
   const handleUnlock = async () => {
-    if (!characterId || !unlockInput.trim()) return;
+    if (!unlockInput.trim()) return;
+    const valor = unlockInput.trim();
     setUnlocking(true);
     setUnlockError("");
-    const valor = unlockInput.trim();
+
+    // Todavía no se guardó el personaje: no existe secretCode propio, así
+    // que lo único que tiene sentido probar es la contraseña de admin.
+    if (!characterId) {
+      try {
+        const ok = await verificarAdmin(valor);
+        if (ok) {
+          setIsAdmin(true);
+          setAdminPassword(valor);
+          setUnlockInput("");
+        } else {
+          setUnlockError("Contraseña incorrecta.");
+        }
+      } catch {
+        setUnlockError("Contraseña incorrecta.");
+      } finally {
+        setUnlocking(false);
+      }
+      return;
+    }
+
+    // Ya existe: probamos primero como dueño (código propio) y si no, como admin
     const intentar = async (credentials: Credentials) =>
       actualizarPersonaje(characterId, {}, credentials);
     try {
@@ -548,11 +571,14 @@ export default function App() {
           <>
             {/* Barra de desbloqueo: aparece si estamos viendo un personaje ya
                 guardado en Mongo pero este navegador no tiene su código guardado */}
-            {characterId && !secretCode && !isAdmin && (
+            {!isAdmin && (
               <Card className="p-4 mb-6 bg-amber-950/30 border-amber-800 flex flex-col sm:flex-row items-center gap-3">
                 <p className="text-sm text-amber-300 flex-1">
-                  Este personaje está bloqueado para edición. Ingresá su código secreto
-                  (o la contraseña de administrador) para poder modificarlo o borrarlo.
+                  {!characterId
+                    ? "Ingresá tu contraseña de administrador para poder asignar Clase de Armadura y competencias de habilidades/salvaciones."
+                    : !secretCode
+                    ? "Este personaje está bloqueado para edición. Ingresá su código secreto (o la contraseña de administrador) para poder modificarlo o borrarlo."
+                    : "Ya podés editar Vida, Velocidad y Ataques. Si además sos el admin, ingresá tu contraseña para habilitar Clase de Armadura y competencias."}
                 </p>
                 <input
                   type="text"

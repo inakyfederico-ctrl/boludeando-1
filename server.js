@@ -79,6 +79,17 @@ app.post('/api/campaigns', async (req, res) => {
     }
 });
 
+// Verifica la contraseña de administrador sin necesitar un personaje todavía
+// (sirve para habilitar el modo admin mientras se está creando un personaje
+// nuevo, antes del primer "Guardar").
+app.post('/api/admin/verify', (req, res) => {
+    const { adminPassword } = req.body || {};
+    if (process.env.ADMIN_PASSWORD && adminPassword === process.env.ADMIN_PASSWORD) {
+        return res.json({ ok: true });
+    }
+    res.status(403).json({ error: 'Contraseña incorrecta' });
+});
+
 // Borra todas las salas que no tengan ningún personaje creado.
 // Requiere la contraseña de administrador.
 app.delete('/api/campaigns/empty', async (req, res) => {
