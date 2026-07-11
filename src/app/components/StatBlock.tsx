@@ -28,6 +28,7 @@ interface StatBlockProps {
   speed: number;
   attacks: Attack[];
   readOnly?: boolean;
+  isAdmin?: boolean;
   onChangeSkillProficiency: (skillId: string, value: SkillProficiency) => void;
   onChangeSaveProficiency: (ability: AbilityKey, value: boolean) => void;
   onChangeHp: (value: number) => void;
@@ -78,6 +79,7 @@ export function StatBlock({
   speed,
   attacks,
   readOnly = false,
+  isAdmin = false,
   onChangeSkillProficiency,
   onChangeSaveProficiency,
   onChangeHp,
@@ -160,7 +162,8 @@ export function StatBlock({
                 type="number"
                 value={ac}
                 onChange={(e) => onChangeAc(Number(e.target.value))}
-                disabled={readOnly}
+                disabled={!isAdmin}
+                title={!isAdmin ? "Solo el administrador puede modificar la Clase de Armadura" : undefined}
                 className="w-full bg-transparent text-center text-xl font-bold text-gray-100 outline-none disabled:opacity-60"
               />
             </div>
@@ -171,7 +174,10 @@ export function StatBlock({
         </Card>
 
         <Card className="p-6 bg-black/40 border-gray-800">
-          <h3 className="text-lg font-semibold text-gray-300 mb-3">Tiradas de Salvación</h3>
+          <h3 className="text-lg font-semibold text-gray-300 mb-3">
+            Tiradas de Salvación
+            {!isAdmin && <span className="text-xs text-gray-600 font-normal ml-2">(competencia: solo admin)</span>}
+          </h3>
           <div className="space-y-2">
             {ABILITY_KEYS.map((key) => {
               const proficient = saveProficiencies[key];
@@ -180,7 +186,7 @@ export function StatBlock({
                   <ProficiencyDot
                     value={proficient ? "proficient" : "none"}
                     onClick={() => onChangeSaveProficiency(key, !proficient)}
-                    disabled={readOnly}
+                    disabled={!isAdmin}
                   />
                   <span className="text-gray-300 flex-1">{ABILITY_NAMES[key]}</span>
                   <span className="text-gray-100 font-semibold">
@@ -237,7 +243,10 @@ export function StatBlock({
 
       {/* Columna derecha: habilidades */}
       <Card className="p-6 bg-black/40 border-gray-800">
-        <h3 className="text-lg font-semibold text-gray-300 mb-3">Habilidades</h3>
+        <h3 className="text-lg font-semibold text-gray-300 mb-3">
+          Habilidades
+          {!isAdmin && <span className="text-xs text-gray-600 font-normal ml-2">(competencia: solo admin)</span>}
+        </h3>
         <div className="space-y-1">
           {SKILLS.map((skill) => {
             const prof = skillProficiencies[skill.id] ?? "none";
@@ -246,7 +255,7 @@ export function StatBlock({
                 <ProficiencyDot
                   value={prof}
                   onClick={() => onChangeSkillProficiency(skill.id, nextProficiency(prof))}
-                  disabled={readOnly}
+                  disabled={!isAdmin}
                 />
                 <span className="text-gray-300 flex-1 text-sm">
                   {prof === "expertise" && <span className="text-cyan-400 mr-1">x2</span>}

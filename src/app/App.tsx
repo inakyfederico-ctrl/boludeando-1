@@ -86,6 +86,11 @@ export default function App() {
   // Null significa: o todavía no se guardó en Mongo, o está bloqueado (viendo
   // el personaje de otra persona sin haber puesto el código).
   const [secretCode, setSecretCode] = useState<string | null>(null);
+  // isAdmin: true cuando se desbloqueó con la contraseña de administrador
+  // (en vez del código propio del personaje). Solo el admin puede tocar
+  // Clase de Armadura y competencias de habilidades/salvaciones.
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminPassword, setAdminPassword] = useState<string | null>(null);
   const [justCreatedSecret, setJustCreatedSecret] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [unlockInput, setUnlockInput] = useState("");
@@ -95,6 +100,14 @@ export default function App() {
   // Se activa recién después de que el personaje ya tiene un id
   // (evita disparar un guardado antes de que exista el registro)
   const skipFirstSave = useRef(true);
+
+  // Devuelve las credenciales que hay que mandar al backend según cómo esté
+  // desbloqueado el personaje actual (como admin o como dueño con su código).
+  const getCredentials = (): Credentials | null => {
+    if (isAdmin && adminPassword) return { adminPassword };
+    if (secretCode) return { secretCode };
+    return null;
+  };
 
   // Función que arma el objeto completo a mandar al backend
   const buildPayload = (): Partial<CharacterPayload> => ({
@@ -116,14 +129,15 @@ export default function App() {
   // (tiene characterId) Y tenemos su código secreto para poder editarlo.
   // Mientras se está creando (antes del primer "Guardar"), no toca la red.
   useEffect(() => {
-    if (!characterId || !secretCode) return;
+    const credentials = getCredentials();
+    if (!characterId || !credentials) return;
     if (skipFirstSave.current) {
       skipFirstSave.current = false;
       return;
     }
     setSaveStatus("saving");
     const timeoutId = setTimeout(() => {
-      actualizarPersonaje(characterId, buildPayload(), { secretCode })
+      actualizarPersonaje(characterId, buildPayload(), credentials)
         .then(() => setSaveStatus("saved"))
         .catch((err) => {
           console.error("Error al autoguardar:", err);
@@ -146,6 +160,8 @@ export default function App() {
     attacks,
     characterId,
     secretCode,
+    isAdmin,
+    adminPassword,
   ]);
 
   // Al unirse/crear una sala, primero se muestra la lista de personajes existentes
@@ -191,8 +207,11 @@ export default function App() {
         setJustCreatedSecret(character.secretCode);
         localStorage.setItem(`personaje_secreto_${character._id}`, character.secretCode);
         skipFirstSave.current = true; // evita que el useEffect dispare un guardado duplicado
-      } else if (secretCode) {
-        await actualizarPersonaje(characterId, buildPayload(), { secretCode });
+      } else {
+        const credentials = getCredentials();
+        if (credentials) {
+          await actualizarPersonaje(characterId, buildPayload(), credentials);
+        }
       }
       setSaveStatus("saved");
     } catch (err) {
@@ -207,17 +226,21 @@ export default function App() {
     if (!characterId || !unlockInput.trim()) return;
     setUnlocking(true);
     setUnlockError("");
+    const valor = unlockInput.trim();
     const intentar = async (credentials: Credentials) =>
       actualizarPersonaje(characterId, {}, credentials);
     try {
-      await intentar({ secretCode: unlockInput.trim() });
-      setSecretCode(unlockInput.trim());
-      localStorage.setItem(`personaje_secreto_${characterId}`, unlockInput.trim());
+      await intentar({ secretCode: valor });
+      setSecretCode(valor);
+      setIsAdmin(false);
+      setAdminPassword(null);
+      localStorage.setItem(`personaje_secreto_${characterId}`, valor);
       setUnlockInput("");
     } catch {
       try {
-        await intentar({ adminPassword: unlockInput.trim() });
-        setSecretCode(unlockInput.trim()); // guarda la admin password como "código" de esta sesión
+        await intentar({ adminPassword: valor });
+        setIsAdmin(true);
+        setAdminPassword(valor);
         setUnlockInput("");
       } catch {
         setUnlockError("Código incorrecto.");
@@ -234,17 +257,27 @@ export default function App() {
     const confirmado = window.confirm("¿Seguro que querés borrar este personaje? No se puede deshacer.");
     if (!confirmado) return;
 
-    let code = secretCode;
-    if (!code) {
-      code = window.prompt("Ingresá el código secreto del personaje o la contraseña de administrador:");
-      if (!code) return;
+    const credenciales = getCredentials();
+    if (credenciales) {
+      try {
+        await borrarPersonaje(characterId, credenciales);
+        localStorage.removeItem(`personaje_secreto_${characterId}`);
+        setCurrentStep("list");
+        return;
+      } catch {
+        window.alert("Código incorrecto. No se pudo borrar el personaje.");
+        return;
+      }
     }
+
+    const code = window.prompt("Ingresá el código secreto del personaje o la contraseña de administrador:");
+    if (!code) return;
     try {
       await borrarPersonaje(characterId, { secretCode: code });
     } catch {
       try {
         await borrarPersonaje(characterId, { adminPassword: code });
-      } catch (err) {
+      } catch {
         window.alert("Código incorrecto. No se pudo borrar el personaje.");
         return;
       }
@@ -510,7 +543,7 @@ export default function App() {
           <>
             {/* Barra de desbloqueo: aparece si estamos viendo un personaje ya
                 guardado en Mongo pero este navegador no tiene su código guardado */}
-            {characterId && !secretCode && (
+            {characterId && !secretCode && !isAdmin && (
               <Card className="p-4 mb-6 bg-amber-950/30 border-amber-800 flex flex-col sm:flex-row items-center gap-3">
                 <p className="text-sm text-amber-300 flex-1">
                   Este personaje está bloqueado para edición. Ingresá su código secreto
@@ -563,6 +596,14 @@ export default function App() {
               </div>
             )}
 
+            {isAdmin && (
+              <div className="mb-4 text-center">
+                <span className="inline-block px-3 py-1 rounded-full bg-purple-900/40 border border-purple-700 text-purple-300 text-xs">
+                  Modo administrador activo
+                </span>
+              </div>
+            )}
+
             <CharacterSheet
               characterData={characterData}
               selectedEyes={selectedEyes}
@@ -576,7 +617,8 @@ export default function App() {
               ac={ac}
               speed={speed}
               attacks={attacks}
-              readOnly={!!characterId && !secretCode}
+              readOnly={!!characterId && !secretCode && !isAdmin}
+              isAdmin={isAdmin}
               onChangeSkillProficiency={handleSkillProficiencyChange}
               onChangeSaveProficiency={handleSaveProficiencyChange}
               onChangeHp={setHp}
@@ -597,7 +639,7 @@ export default function App() {
               </Button>
 
               <div className="flex flex-wrap gap-3">
-                {characterId && secretCode && (
+                {characterId && (secretCode || isAdmin) && (
                   <Button
                     onClick={handleDeleteCharacter}
                     variant="outline"
@@ -607,7 +649,7 @@ export default function App() {
                     Borrar personaje
                   </Button>
                 )}
-                {(!characterId || secretCode) && (
+                {(!characterId || secretCode || isAdmin) && (
                   <Button
                     onClick={handleSaveCharacter}
                     disabled={saveStatus === "saving"}
